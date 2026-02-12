@@ -112,3 +112,12 @@ jobs:
 
       - name: Publish to npm
         run: npm publish --provenance --access public
+
+      - name: Update Homebrew formula
+        uses: mislav/bump-homebrew-formula-action@v3
+        with:
+          formula-name: counselors
+          homebrew-tap: aarondfrancis/homebrew-counselors
+          download-url: https://registry.npmjs.org/counselors/-/counselors-${{ steps.version.outputs.number }}.tgz
+        env:
+          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
