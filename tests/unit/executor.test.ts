@@ -1,4 +1,4 @@
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -8,8 +8,8 @@ describe('execute', () => {
   it('captures stdout', async () => {
     const result = await execute(
       {
-        cmd: 'echo',
-        args: ['hello world'],
+        cmd: 'node',
+        args: ['-e', 'process.stdout.write("hello world")'],
         cwd: process.cwd(),
       },
       5000,
@@ -49,8 +49,8 @@ describe('execute', () => {
   it('times out and kills', async () => {
     const result = await execute(
       {
-        cmd: 'sleep',
-        args: ['60'],
+        cmd: 'node',
+        args: ['-e', 'setInterval(() => {}, 1000)'],
         cwd: process.cwd(),
       },
       500,
@@ -74,6 +74,60 @@ describe('execute', () => {
     );
 
     expect(result.stdout).toBe('hello from stdin');
+  });
+
+  it('passes shell metacharacters as literal arguments', async () => {
+    const literal = 'hello & world | test > output';
+    const result = await execute(
+      {
+        cmd: 'node',
+        args: ['-e', 'process.stdout.write(process.argv[1])', literal],
+        cwd: process.cwd(),
+      },
+      5000,
+    );
+
+    expect(result.stdout).toBe(literal);
+  });
+
+  it('passes shell metacharacters literally through windows .cmd wrappers', async () => {
+    if (process.platform !== 'win32') return;
+
+    const testDir = mkdtempSync(join(tmpdir(), 'counselors-cmd-wrapper-'));
+    const scriptPath = join(testDir, 'emit-ok.js');
+    const cmdPath = join(testDir, 'echo-arg.cmd');
+    const executedPath = join(testDir, 'executed.txt');
+    const markerPath = join(testDir, 'injected.txt');
+
+    try {
+      writeFileSync(
+        scriptPath,
+        'require("node:fs").writeFileSync("executed.txt", "ok")',
+        'utf-8',
+      );
+      writeFileSync(
+        cmdPath,
+        '@echo off\r\nnode "%~dp0emit-ok.js"\r\n',
+        'utf-8',
+      );
+
+      // If metacharacters are interpreted by cmd.exe, this creates markerPath.
+      const literal = `hello & type nul > "${markerPath}"`;
+      const result = await execute(
+        {
+          cmd: cmdPath,
+          args: [literal],
+          cwd: testDir,
+        },
+        5000,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(existsSync(executedPath)).toBe(true);
+      expect(existsSync(markerPath)).toBe(false);
+    } finally {
+      rmSync(testDir, { recursive: true, force: true });
+    }
   });
 
   it('handles missing binary', async () => {

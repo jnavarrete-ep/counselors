@@ -43,6 +43,8 @@ describe('safeWriteFile', () => {
   });
 
   it('applies file mode when option is provided', () => {
+    if (process.platform === 'win32') return;
+
     const path = join(testDir, 'secure.txt');
     safeWriteFile(path, 'secret', { mode: 0o600 });
     expect(readFileSync(path, 'utf-8')).toBe('secret');
@@ -69,6 +71,8 @@ describe('safeWriteFile', () => {
   });
 
   it('overwrites symlinks atomically (rename replaces target)', () => {
+    if (process.platform === 'win32') return;
+
     // Create a regular file and a symlink pointing to it
     const realFile = join(testDir, 'real.txt');
     const symlink = join(testDir, 'link.txt');

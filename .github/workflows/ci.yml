@@ -8,11 +8,23 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
-        node-version: [20, 22, 24]
+        include:
+          - os: ubuntu-latest
+            node-version: 20
+            test-command: npm run test
+          - os: ubuntu-latest
+            node-version: 22
+            test-command: npm run test
+          - os: ubuntu-latest
+            node-version: 24
+            test-command: npm run test
+          - os: windows-latest
+            node-version: 22
+            test-command: npm run test -- tests/unit
 
     steps:
       - name: Checkout
@@ -37,4 +49,4 @@ jobs:
         run: npm run build
 
       - name: Test
-        run: npm run test
+        run: ${{ matrix.test-command }}

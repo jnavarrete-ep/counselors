@@ -1,5 +1,5 @@
-import { type ChildProcess, execFile, spawn } from 'node:child_process';
-import { promisify } from 'node:util';
+import { type ChildProcess, execFileSync } from 'node:child_process';
+import crossSpawn from 'cross-spawn';
 import stripAnsi from 'strip-ansi';
 import { computeAmpCost, parseAmpUsage } from '../adapters/amp.js';
 import { KILL_GRACE_PERIOD, TEST_TIMEOUT } from '../constants.js';
@@ -13,24 +13,47 @@ import type {
 } from '../types.js';
 import { debug } from '../ui/logger.js';
 
-const execFileAsync = promisify(execFile);
-
 const MAX_OUTPUT_BYTES = 10 * 1024 * 1024; // 10MB
+const WINDOWS_TASKKILL_TIMEOUT_MS = 1500;
 
 const activeChildren = new Set<ChildProcess>();
 
 /** Kill an entire process group, falling back to just the child. */
 function killProcessGroup(child: ChildProcess, signal: NodeJS.Signals): void {
+  if (process.platform === 'win32') {
+    try {
+      if (child.pid) {
+        const taskkillArgs = ['/PID', String(child.pid), '/T'];
+        if (signal === 'SIGKILL') {
+          taskkillArgs.push('/F');
+        }
+
+        // Windows has no POSIX process groups; kill the full process tree.
+        execFileSync('taskkill', taskkillArgs, {
+          stdio: 'ignore',
+          windowsHide: true,
+          timeout: WINDOWS_TASKKILL_TIMEOUT_MS,
+        });
+        return;
+      }
+    } catch {
+      // Fall through to direct child kill.
+    }
+  }
+
   try {
     if (child.pid) {
       process.kill(-child.pid, signal);
+      return;
     }
   } catch {
-    try {
-      child.kill(signal);
-    } catch {
-      /* already dead */
-    }
+    // Fall through to direct child kill.
+  }
+
+  try {
+    child.kill(signal);
+  } catch {
+    /* already dead */
   }
 }
 
@@ -50,8 +73,19 @@ const ENV_ALLOWLIST = [
   'LANG',
   'SHELL',
   'TMPDIR',
+  'TEMP',
+  'TMP',
   'XDG_CONFIG_HOME',
   'XDG_DATA_HOME',
+  // Windows system environment (needed for .cmd resolution and child tools)
+  'PATHEXT',
+  'SystemRoot',
+  'WINDIR',
+  'ComSpec',
+  'COMSPEC',
+  'USERPROFILE',
+  'APPDATA',
+  'LOCALAPPDATA',
   // Node version managers
   'NVM_BIN',
   'NVM_DIR',
@@ -105,17 +139,34 @@ export function execute(
 
     debug(`Executing: ${invocation.cmd} ${invocation.args.join(' ')}`);
 
-    const child = spawn(invocation.cmd, invocation.args, {
+    const child = crossSpawn(invocation.cmd, invocation.args, {
       cwd: invocation.cwd,
       env: buildSafeEnv(invocation.env),
       stdio: ['pipe', 'pipe', 'pipe'],
       detached: true,
+      shell: false,
+      windowsHide: true,
     });
+
+    const stdoutStream = child.stdout;
+    const stderrStream = child.stderr;
+    const stdinStream = child.stdin;
+
+    if (!stdoutStream || !stderrStream || !stdinStream) {
+      resolve({
+        exitCode: 1,
+        stdout: '',
+        stderr: 'Failed to initialize child process stdio streams.',
+        timedOut: false,
+        durationMs: Date.now() - start,
+      });
+      return;
+    }
 
     // Track active children for SIGINT cleanup
     activeChildren.add(child);
 
-    child.stdout.on('data', (data: Buffer) => {
+    stdoutStream.on('data', (data: Buffer) => {
       if (!truncated && stdout.length < MAX_OUTPUT_BYTES) {
         stdout += data.toString();
         if (stdout.length >= MAX_OUTPUT_BYTES) {
@@ -125,7 +176,7 @@ export function execute(
       }
     });
 
-    child.stderr.on('data', (data: Buffer) => {
+    stderrStream.on('data', (data: Buffer) => {
       if (stderr.length < MAX_OUTPUT_BYTES) {
         stderr += data.toString();
       }
@@ -133,10 +184,10 @@ export function execute(
 
     // Write stdin if provided
     if (invocation.stdin) {
-      child.stdin.write(invocation.stdin);
-      child.stdin.end();
+      stdinStream.write(invocation.stdin);
+      stdinStream.end();
     } else {
-      child.stdin.end();
+      stdinStream.end();
     }
 
     // Timeout: SIGTERM the process group first, SIGKILL after grace period
@@ -184,15 +235,16 @@ export function execute(
  * Capture amp usage before/after a run to compute cost.
  */
 export async function captureAmpUsage(): Promise<string | null> {
-  try {
-    const { stdout } = await execFileAsync('amp', ['usage'], {
-      timeout: 10_000,
-      encoding: 'utf-8',
-    });
-    return stdout;
-  } catch {
-    return null;
-  }
+  const result = await execute(
+    {
+      cmd: 'amp',
+      args: ['usage'],
+      cwd: process.cwd(),
+    },
+    10_000,
+  );
+
+  return result.exitCode === 0 ? result.stdout : null;
 }
 
 /**

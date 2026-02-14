@@ -10,14 +10,14 @@ const fakeAdapter: ToolAdapter = {
   readOnly: { level: 'none' },
   models: [{ id: 'model-1', name: 'Model 1' }],
   buildInvocation: (req) => ({
-    cmd: 'echo',
-    args: ['OK'],
+    cmd: 'node',
+    args: ['-e', 'process.stdout.write(process.argv[1] || "")', 'OK'],
     cwd: req.cwd,
   }),
 };
 
 const fakeToolConfig: ToolConfig = {
-  binary: '/bin/echo',
+  binary: 'node',
   readOnly: { level: 'none' },
 };
 
@@ -43,14 +43,17 @@ describe('executeTest', () => {
   });
 
   it('overrides stdin for stdin-based adapters', async () => {
-    // `cat` echoes stdin — if executeTest overrides stdin with the test
-    // prompt ("Reply with exactly: OK"), cat outputs it and the test passes.
+    // This script echoes stdin; executeTest should override stdin with the
+    // test prompt ("Reply with exactly: OK"), so output contains "OK".
     const catAdapter: ToolAdapter = {
       ...fakeAdapter,
       id: 'stdin-test',
       buildInvocation: (req) => ({
-        cmd: 'cat',
-        args: [],
+        cmd: 'node',
+        args: [
+          '-e',
+          'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(d))',
+        ],
         stdin: 'this-should-be-overridden',
         cwd: req.cwd,
       }),
@@ -62,13 +65,17 @@ describe('executeTest', () => {
   });
 
   it('replaces last arg for argument-based adapters', async () => {
-    // echo outputs its args — executeTest should replace the last arg
-    // with the test prompt, so echo outputs it (containing "OK").
+    // This script outputs argv[1] — executeTest should replace the last arg
+    // with the test prompt, so output contains "OK".
     const echoAdapter: ToolAdapter = {
       ...fakeAdapter,
       buildInvocation: (req) => ({
-        cmd: 'echo',
-        args: ['placeholder-to-be-replaced'],
+        cmd: 'node',
+        args: [
+          '-e',
+          'process.stdout.write(process.argv[1] || "")',
+          'placeholder-to-be-replaced',
+        ],
         cwd: req.cwd,
       }),
     };
@@ -89,7 +96,11 @@ describe('executeTest', () => {
       ...fakeAdapter,
       buildInvocation: (req) => {
         capturedReq = req;
-        return { cmd: 'echo', args: ['OK'], cwd: req.cwd };
+        return {
+          cmd: 'node',
+          args: ['-e', 'process.stdout.write(process.argv[1] || "")', 'OK'],
+          cwd: req.cwd,
+        };
       },
     };
 

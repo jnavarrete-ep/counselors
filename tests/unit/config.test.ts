@@ -91,6 +91,8 @@ describe('saveConfig', () => {
   });
 
   it('writes config with restrictive file permissions (0o600)', () => {
+    if (process.platform === 'win32') return;
+
     const config: Config = {
       version: 1,
       defaults: {

@@ -9,12 +9,59 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import crossSpawn from 'cross-spawn';
 import {
   DISCOVERY_TIMEOUT,
   getExtendedSearchPaths,
   VERSION_TIMEOUT,
 } from '../constants.js';
 import type { DiscoveryResult } from '../types.js';
+
+const DEFAULT_WINDOWS_EXTENSIONS = ['.com', '.exe', '.bat', '.cmd'];
+
+/** Parse PATHEXT into normalized executable extensions for Windows scanning. */
+export function getWindowsExecutableExtensions(
+  pathext = process.env.PATHEXT,
+): string[] {
+  const parsed = (pathext ?? DEFAULT_WINDOWS_EXTENSIONS.join(';'))
+    .split(';')
+    .map((ext) => ext.trim().toLowerCase())
+    .filter(Boolean)
+    .map((ext) => (ext.startsWith('.') ? ext : `.${ext}`));
+
+  const unique = [...new Set(parsed)];
+  for (const required of DEFAULT_WINDOWS_EXTENSIONS) {
+    if (!unique.includes(required)) unique.push(required);
+  }
+
+  return unique;
+}
+
+/** Build candidate binary paths for stage-2 discovery scanning. */
+export function buildBinaryCandidatesForScan(
+  dir: string,
+  command: string,
+  platform: NodeJS.Platform = process.platform,
+  pathext = process.env.PATHEXT,
+): string[] {
+  if (platform !== 'win32') {
+    return [join(dir, command)];
+  }
+
+  const lowerCommand = command.toLowerCase();
+  const extensions = getWindowsExecutableExtensions(pathext);
+  const hasKnownExtension = extensions.some((ext) =>
+    lowerCommand.endsWith(ext),
+  );
+  if (hasKnownExtension) {
+    return [join(dir, command)];
+  }
+
+  return [
+    ...extensions.map((ext) => join(dir, `${command}${ext}`)),
+    join(dir, command),
+  ];
+}
 
 /**
  * Two-stage binary discovery:
@@ -44,14 +91,17 @@ export function findBinary(command: string): string | null {
     ...getNvmPaths(),
     ...getFnmPaths(),
   ];
+  const accessMode =
+    process.platform === 'win32' ? constants.F_OK : constants.X_OK;
 
   for (const dir of searchPaths) {
-    const fullPath = join(dir, command);
-    try {
-      accessSync(fullPath, constants.X_OK);
-      return fullPath;
-    } catch {
-      // not found here, continue
+    for (const candidate of buildBinaryCandidatesForScan(dir, command)) {
+      try {
+        accessSync(candidate, accessMode);
+        return candidate;
+      } catch {
+        // not found here, continue
+      }
     }
   }
 
@@ -153,18 +203,22 @@ function getFnmPaths(): string[] {
  * Get binary version via --version flag.
  */
 export function getBinaryVersion(binaryPath: string): string | null {
-  try {
-    const output = execFileSync(binaryPath, ['--version'], {
-      timeout: VERSION_TIMEOUT,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      encoding: 'utf-8',
-    }).trim();
-    // Take first line, strip common prefixes
-    const firstLine = output.split('\n')[0].trim();
-    return firstLine || null;
-  } catch {
+  const result = crossSpawn.sync(binaryPath, ['--version'], {
+    timeout: VERSION_TIMEOUT,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf-8',
+    shell: false,
+    windowsHide: true,
+  });
+
+  if (result.error || result.status !== 0) {
     return null;
   }
+
+  const output = String(result.stdout ?? '').trim();
+  // Take first line, strip common prefixes
+  const firstLine = output.split('\n')[0].trim();
+  return firstLine || null;
 }
 
 /**
