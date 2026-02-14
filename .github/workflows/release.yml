@@ -117,7 +117,7 @@ jobs:
         uses: mislav/bump-homebrew-formula-action@v3
         with:
           formula-name: counselors
-          homebrew-tap: aarondfrancis/homebrew-counselors
+          homebrew-tap: aarondfrancis/homebrew-tap
           download-url: https://registry.npmjs.org/counselors/-/counselors-${{ steps.version.outputs.number }}.tgz
         env:
           COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
