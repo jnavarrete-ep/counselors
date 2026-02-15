@@ -1,4 +1,5 @@
 import { type ChildProcess, execFileSync } from 'node:child_process';
+import { dirname, isAbsolute } from 'node:path';
 import crossSpawn from 'cross-spawn';
 import stripAnsi from 'strip-ansi';
 import { computeAmpCost, parseAmpUsage } from '../adapters/amp.js';
@@ -139,11 +140,32 @@ export function execute(
 
     debug(`Executing: ${invocation.cmd} ${invocation.args.join(' ')}`);
 
+    const env = buildSafeEnv(invocation.env);
+
+    // On Windows, ensure the binary's parent directory is in PATH.
+    // cross-spawn uses `which` to pre-resolve the command; if `which` fails,
+    // `parsed.file` stays null and cross-spawn converts ANY exit-code-1 into a
+    // synthetic ENOENT — even when cmd.exe actually found and ran the binary.
+    // Adding the directory guarantees `which` resolves .cmd/.bat wrappers so
+    // real errors (auth failures, bad args, etc.) are reported correctly.
+    if (process.platform === 'win32' && isAbsolute(invocation.cmd)) {
+      const binDir = dirname(invocation.cmd);
+      const currentPath = env.PATH ?? env.Path ?? '';
+      if (!currentPath.split(';').includes(binDir)) {
+        env.PATH = `${binDir};${currentPath}`;
+      }
+    }
+
     const child = crossSpawn(invocation.cmd, invocation.args, {
       cwd: invocation.cwd,
-      env: buildSafeEnv(invocation.env),
+      env,
       stdio: ['pipe', 'pipe', 'pipe'],
-      detached: true,
+      // On POSIX, detached creates a new process group so we can kill the
+      // entire tree with process.kill(-pid).  On Windows this breaks stdout
+      // capture for .cmd/.bat wrappers (cross-spawn routes them through
+      // cmd.exe /c and the new console swallows the pipes).  Windows process
+      // tree killing is handled via taskkill /T instead.
+      detached: process.platform !== 'win32',
       shell: false,
       windowsHide: true,
     });
@@ -282,6 +304,7 @@ export async function executeTest(
     readOnlyPolicy: 'none',
     timeout: TEST_TIMEOUT / 1000,
     cwd: process.cwd(),
+    binary: toolConfig.binary,
     extraFlags: toolConfig.extraFlags,
   });
 

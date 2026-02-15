@@ -107,4 +107,27 @@ describe('executeTest', () => {
     await executeTest(spyAdapter, configWithFlags);
     expect(capturedReq.extraFlags).toEqual(['--model', 'opus']);
   });
+
+  it('passes binary from toolConfig to adapter', async () => {
+    const configWithBinary: ToolConfig = {
+      ...fakeToolConfig,
+      binary: '/custom/path/to/tool',
+    };
+
+    let capturedReq: any;
+    const spyAdapter: ToolAdapter = {
+      ...fakeAdapter,
+      buildInvocation: (req) => {
+        capturedReq = req;
+        return {
+          cmd: 'node',
+          args: ['-e', 'process.stdout.write(process.argv[1] || "")', 'OK'],
+          cwd: req.cwd,
+        };
+      },
+    };
+
+    await executeTest(spyAdapter, configWithBinary);
+    expect(capturedReq.binary).toBe('/custom/path/to/tool');
+  });
 });
