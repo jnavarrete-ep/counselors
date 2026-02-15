@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `cleanup` command to delete run output directories older than a configurable age (defaults to 1 day)
+- Tool groups (`groups` config, `counselors groups ...`, and `counselors run --group`)
+- `upgrade` command with install-method detection (Homebrew, npm, pnpm, yarn, standalone binary)
+- Standalone binary releases and `install.sh` curl installer
+
+### Changed
+- Skill template and docs clarify that output directories are configurable via `defaults.outputDir` and `counselors run -o`
+
+### Fixed
+- Hardened Windows command execution (cmd metachar safety) and process cleanup behavior
+
 ## [0.3.4] - 2026-02-10
 
 ### Changed

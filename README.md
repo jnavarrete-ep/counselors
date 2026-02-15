@@ -10,11 +10,11 @@ No MCP servers, no API keys, no complex configuration. It just calls your locall
 
 ## Agentic quickstart
 
-Install the CLI yourself first:
+Install the CLI yourself first (pick one):
 
-```bash
-npm install -g counselors
-```
+- npm (requires Node 20+): `npm install -g counselors`
+- Homebrew: `brew install aarondfrancis/homebrew-tap/counselors`
+- Standalone binary: `curl -fsSL https://github.com/aarondfrancis/counselors/raw/main/install.sh | bash`
 
 Then paste this to your AI coding agent:
 
