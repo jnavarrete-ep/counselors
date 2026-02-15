@@ -40,6 +40,8 @@ describe('detectInstallMethod', () => {
       brewVersion: '0.3.4',
       npmVersion: '0.3.4',
       npmPrefix: '/usr/local',
+      pnpmPath: null,
+      yarnPath: null,
       homeDir: '/Users/tester',
     });
     expect(method).toBe('homebrew');
@@ -59,8 +61,10 @@ describe('detectInstallMethod', () => {
       binaryPath,
       resolvedBinaryPath: binaryPath,
       brewVersion: null,
-      npmVersion: '0.3.4',
+      npmVersion: null,
       npmPrefix,
+      pnpmPath: null,
+      yarnPath: null,
       homeDir: '/Users/tester',
     });
     expect(method).toBe('npm');
@@ -73,9 +77,67 @@ describe('detectInstallMethod', () => {
       brewVersion: null,
       npmVersion: null,
       npmPrefix: null,
+      pnpmPath: null,
+      yarnPath: null,
       homeDir: '/Users/tester',
     });
     expect(method).toBe('standalone');
+  });
+
+  it('detects standalone when invoked path is a symlink to a safe target', () => {
+    const method = detectInstallMethod({
+      binaryPath: '/usr/local/bin/counselors',
+      resolvedBinaryPath: '/Users/tester/.local/bin/counselors',
+      brewVersion: null,
+      npmVersion: null,
+      npmPrefix: null,
+      pnpmPath: null,
+      yarnPath: null,
+      homeDir: '/Users/tester',
+    });
+    expect(method).toBe('standalone');
+  });
+
+  it('returns unknown for system paths when no install method can be determined', () => {
+    const method = detectInstallMethod({
+      binaryPath: '/usr/bin/counselors',
+      resolvedBinaryPath: '/usr/bin/counselors',
+      brewVersion: null,
+      npmVersion: null,
+      npmPrefix: null,
+      pnpmPath: null,
+      yarnPath: null,
+      homeDir: '/Users/tester',
+    });
+    expect(method).toBe('unknown');
+  });
+
+  it('detects pnpm global installs', () => {
+    const method = detectInstallMethod({
+      binaryPath: '/Users/tester/Library/pnpm/counselors',
+      resolvedBinaryPath: '/Users/tester/Library/pnpm/counselors',
+      brewVersion: null,
+      npmVersion: null,
+      npmPrefix: null,
+      pnpmPath: '/usr/local/bin/pnpm',
+      yarnPath: null,
+      homeDir: '/Users/tester',
+    });
+    expect(method).toBe('pnpm');
+  });
+
+  it('detects yarn global installs', () => {
+    const method = detectInstallMethod({
+      binaryPath: '/Users/tester/.yarn/bin/counselors',
+      resolvedBinaryPath: '/Users/tester/.yarn/bin/counselors',
+      brewVersion: null,
+      npmVersion: null,
+      npmPrefix: null,
+      pnpmPath: null,
+      yarnPath: '/usr/local/bin/yarn',
+      homeDir: '/Users/tester',
+    });
+    expect(method).toBe('yarn');
   });
 });
 

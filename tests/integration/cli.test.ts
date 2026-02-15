@@ -87,4 +87,9 @@ describe('CLI', () => {
     expect(output).toContain('Install method');
     expect(output).toContain('Running version');
   });
+
+  it('upgrade --dry-run does not error', () => {
+    const output = run('upgrade --dry-run');
+    expect(output).toContain('Dry run');
+  });
 });

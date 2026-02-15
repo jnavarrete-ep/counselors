@@ -1,20 +1,30 @@
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
+  accessSync,
   chmodSync,
+  constants,
   existsSync,
   lstatSync,
   readFileSync,
   realpathSync,
   renameSync,
+  rmSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { VERSION_TIMEOUT } from '../constants.js';
 import { findBinary, getBinaryVersion } from './discovery.js';
 
-export type InstallMethod = 'homebrew' | 'npm' | 'standalone' | 'unknown';
+export type InstallMethod =
+  | 'homebrew'
+  | 'npm'
+  | 'pnpm'
+  | 'yarn'
+  | 'standalone'
+  | 'unknown';
 
 export interface InstallDetection {
   method: InstallMethod;
@@ -24,6 +34,10 @@ export interface InstallDetection {
   brewVersion: string | null;
   npmVersion: string | null;
   npmPrefix: string | null;
+  brewPath: string | null;
+  npmPath: string | null;
+  pnpmPath: string | null;
+  yarnPath: string | null;
   upgradeCommand: string | null;
 }
 
@@ -33,6 +47,8 @@ export interface DetectInstallMethodInput {
   brewVersion: string | null;
   npmVersion: string | null;
   npmPrefix: string | null;
+  pnpmPath: string | null;
+  yarnPath: string | null;
   homeDir: string;
 }
 
@@ -58,6 +74,10 @@ export interface UpgradeDeps {
   fetchFn?: typeof fetch;
 }
 
+export interface PerformUpgradeOptions {
+  force?: boolean;
+}
+
 export interface UpgradeOutcome {
   ok: boolean;
   method: InstallMethod;
@@ -79,6 +99,7 @@ export interface StandaloneUpgradeResult {
   tag: string;
   assetName: string;
   targetPath: string;
+  didUpgrade: boolean;
 }
 
 export function parseBrewVersion(output: string): string | null {
@@ -126,6 +147,66 @@ export function getStandaloneAssetName(
   return `counselors-${os}-${normalizedArch}`;
 }
 
+function getSafeStandaloneRoots(homeDir: string): string[] {
+  const roots = [
+    normalizePath(join(homeDir, '.local', 'bin')),
+    normalizePath(join(homeDir, 'bin')),
+  ];
+  return roots.filter((r): r is string => Boolean(r));
+}
+
+function isSafeStandalonePath(path: string | null, homeDir: string): boolean {
+  if (!path) return false;
+  const normalized = normalizePath(path);
+  if (!normalized) return false;
+
+  return getSafeStandaloneRoots(homeDir).some(
+    (root) => normalized === root || normalized.startsWith(`${root}/`),
+  );
+}
+
+function isLikelyPnpmInstall(
+  binaryPath: string | null,
+  resolvedBinaryPath: string | null,
+  homeDir: string,
+): boolean {
+  const candidates = [binaryPath, resolvedBinaryPath]
+    .map((p) => normalizePath(p))
+    .filter((p): p is string => Boolean(p));
+
+  const pnpmRoots = [
+    // Defaults from pnpm docs
+    normalizePath(join(homeDir, 'Library', 'pnpm')), // macOS
+    normalizePath(join(homeDir, '.local', 'share', 'pnpm')), // Linux
+  ].filter((p): p is string => Boolean(p));
+
+  return candidates.some((p) => {
+    if (p.includes('/.pnpm/')) return true;
+    if (p.includes('/pnpm/')) return true;
+    return pnpmRoots.some((root) => p === root || p.startsWith(`${root}/`));
+  });
+}
+
+function isLikelyYarnGlobalInstall(
+  binaryPath: string | null,
+  resolvedBinaryPath: string | null,
+  homeDir: string,
+): boolean {
+  const candidates = [binaryPath, resolvedBinaryPath]
+    .map((p) => normalizePath(p))
+    .filter((p): p is string => Boolean(p));
+
+  const yarnRoots = [
+    normalizePath(join(homeDir, '.yarn', 'bin')), // yarn classic global bin
+    normalizePath(join(homeDir, '.config', 'yarn', 'global')), // yarn classic global dir
+  ].filter((p): p is string => Boolean(p));
+
+  return candidates.some((p) => {
+    if (p.includes('/.yarn/')) return true;
+    return yarnRoots.some((root) => p === root || p.startsWith(`${root}/`));
+  });
+}
+
 export function detectInstallMethod(
   input: DetectInstallMethodInput,
 ): InstallMethod {
@@ -141,14 +222,30 @@ export function detectInstallMethod(
     return 'homebrew';
   }
 
+  if (
+    input.pnpmPath &&
+    isLikelyPnpmInstall(binaryPath, resolvedBinaryPath, homeDir)
+  ) {
+    return 'pnpm';
+  }
+
+  if (
+    input.yarnPath &&
+    isLikelyYarnGlobalInstall(binaryPath, resolvedBinaryPath, homeDir)
+  ) {
+    return 'yarn';
+  }
+
   const npmCandidates = npmPrefix
     ? process.platform === 'win32'
-      ? [normalizePath(join(npmPrefix, 'counselors.cmd'))]
+      ? [
+          normalizePath(join(npmPrefix, 'counselors.cmd')),
+          normalizePath(join(npmPrefix, 'counselors')),
+        ]
       : [normalizePath(join(npmPrefix, 'bin', 'counselors'))]
     : [];
   if (
     binaryPath &&
-    input.npmVersion &&
     npmCandidates.some((candidate) => candidate === binaryPath)
   ) {
     return 'npm';
@@ -158,21 +255,15 @@ export function detectInstallMethod(
     return 'npm';
   }
 
-  const localBinCandidates = [
-    normalizePath(join(homeDir, '.local', 'bin', 'counselors')),
-    normalizePath(join(homeDir, 'bin', 'counselors')),
-  ].filter((p): p is string => Boolean(p));
   if (
-    binaryPath &&
-    localBinCandidates.some((candidate) => candidate === binaryPath)
+    isSafeStandalonePath(binaryPath, homeDir) ||
+    isSafeStandalonePath(resolvedBinaryPath, homeDir)
   ) {
     return 'standalone';
   }
 
   if (input.brewVersion && !input.npmVersion) return 'homebrew';
   if (input.npmVersion && !input.brewVersion) return 'npm';
-  if (binaryPath && !input.brewVersion && !input.npmVersion)
-    return 'standalone';
 
   return 'unknown';
 }
@@ -188,27 +279,39 @@ export function detectInstallation(deps: UpgradeDeps = {}): InstallDetection {
     ? safeRealPath(binaryPath, realpathFn)
     : null;
 
-  const hasBrew = Boolean(findBinaryFn('brew'));
-  const hasNpm = Boolean(findBinaryFn('npm'));
+  const brewPath = findBinaryFn('brew');
+  const npmPath = findBinaryFn('npm');
+  const pnpmPath = findBinaryFn('pnpm');
+  const yarnPath = findBinaryFn('yarn');
+
+  const hasBrew = Boolean(brewPath);
+  const hasNpm = Boolean(npmPath);
 
   const brewVersion = hasBrew
     ? parseBrewVersion(
-        captureCommand('brew', ['list', '--versions', 'counselors']).stdout,
+        captureCommand(brewPath!, ['list', '--versions', 'counselors']).stdout,
       )
     : null;
 
   const npmPrefix = hasNpm
-    ? captureCommand('npm', ['prefix', '-g']).stdout.trim() || null
+    ? captureCommand(npmPath!, ['prefix', '-g']).stdout.trim() || null
     : null;
   const npmVersion =
     hasNpm && npmPrefix ? readNpmGlobalVersion(npmPrefix) : null;
+  const npmVersionFallback =
+    hasNpm && npmPath
+      ? readNpmGlobalVersionFromNpmLs(captureCommand, npmPath)
+      : null;
+  const effectiveNpmVersion = npmVersion ?? npmVersionFallback;
 
   const method = detectInstallMethod({
     binaryPath,
     resolvedBinaryPath,
     brewVersion,
-    npmVersion,
+    npmVersion: effectiveNpmVersion,
     npmPrefix,
+    pnpmPath,
+    yarnPath,
     homeDir,
   });
 
@@ -216,7 +319,7 @@ export function detectInstallation(deps: UpgradeDeps = {}): InstallDetection {
   if (method === 'homebrew') {
     installedVersion = brewVersion;
   } else if (method === 'npm') {
-    installedVersion = npmVersion;
+    installedVersion = effectiveNpmVersion;
   } else if (method === 'standalone' && binaryPath) {
     installedVersion = extractVersion(getBinaryVersion(binaryPath));
   }
@@ -226,9 +329,13 @@ export function detectInstallation(deps: UpgradeDeps = {}): InstallDetection {
       ? 'brew upgrade counselors'
       : method === 'npm'
         ? 'npm install -g counselors@latest'
-        : method === 'standalone'
-          ? 'counselors upgrade'
-          : null;
+        : method === 'pnpm'
+          ? 'pnpm add -g counselors@latest'
+          : method === 'yarn'
+            ? 'yarn global add counselors@latest'
+            : method === 'standalone'
+              ? 'counselors upgrade'
+              : null;
 
   return {
     method,
@@ -236,29 +343,52 @@ export function detectInstallation(deps: UpgradeDeps = {}): InstallDetection {
     resolvedBinaryPath,
     installedVersion,
     brewVersion,
-    npmVersion,
+    npmVersion: effectiveNpmVersion,
     npmPrefix,
+    brewPath,
+    npmPath,
+    pnpmPath,
+    yarnPath,
     upgradeCommand,
   };
 }
 
 export async function performUpgrade(
   detection: InstallDetection,
+  opts: PerformUpgradeOptions = {},
   deps: UpgradeDeps = {},
 ): Promise<UpgradeOutcome> {
   const runCommand = deps.runCommand ?? defaultRunCommand;
 
   if (detection.method === 'homebrew') {
-    return runManagerUpgrade(runCommand, 'homebrew', 'brew', [
-      'upgrade',
-      'counselors',
-    ]);
+    return runManagerUpgrade(
+      runCommand,
+      'homebrew',
+      detection.brewPath ?? 'brew',
+      ['upgrade', 'counselors'],
+    );
   }
 
   if (detection.method === 'npm') {
-    return runManagerUpgrade(runCommand, 'npm', 'npm', [
+    return runManagerUpgrade(runCommand, 'npm', detection.npmPath ?? 'npm', [
       'install',
       '-g',
+      'counselors@latest',
+    ]);
+  }
+
+  if (detection.method === 'pnpm') {
+    return runManagerUpgrade(runCommand, 'pnpm', detection.pnpmPath ?? 'pnpm', [
+      'add',
+      '-g',
+      'counselors@latest',
+    ]);
+  }
+
+  if (detection.method === 'yarn') {
+    return runManagerUpgrade(runCommand, 'yarn', detection.yarnPath ?? 'yarn', [
+      'global',
+      'add',
       'counselors@latest',
     ]);
   }
@@ -273,12 +403,32 @@ export async function performUpgrade(
       };
     }
 
+    const targetPath = resolveStandaloneTargetPath(detection.binaryPath);
+    const homeDir = deps.homeDir ?? homedir();
+    const safe = isSafeStandalonePath(targetPath, homeDir);
+    if (!safe && !opts.force) {
+      return {
+        ok: false,
+        method: detection.method,
+        message:
+          `Refusing to self-replace counselors outside user-owned install locations.\n` +
+          `Detected path: ${targetPath}\n` +
+          `Re-run with --force if you are sure this is a standalone install.`,
+      };
+    }
+
     try {
-      const result = await upgradeStandaloneBinary(detection.binaryPath, deps);
+      const result = await upgradeStandaloneBinary(
+        detection.binaryPath,
+        detection.installedVersion,
+        deps,
+      );
       return {
         ok: true,
         method: detection.method,
-        message: `Upgraded standalone binary to ${result.version} (${result.assetName}).`,
+        message: result.didUpgrade
+          ? `Upgraded standalone binary to ${result.version} (${result.assetName}).`
+          : `Already up to date (${result.version}).`,
       };
     } catch (e) {
       return {
@@ -296,12 +446,13 @@ export async function performUpgrade(
     ok: false,
     method: detection.method,
     message:
-      'Could not detect a supported install method. Supported methods: Homebrew, npm global, standalone binary.',
+      'Could not detect a supported install method. Supported methods: Homebrew, npm, pnpm, yarn, standalone binary.',
   };
 }
 
 export async function upgradeStandaloneBinary(
   binaryPath: string,
+  installedVersion: string | null,
   deps: UpgradeDeps = {},
 ): Promise<StandaloneUpgradeResult> {
   const fetchFn = deps.fetchFn ?? fetch;
@@ -311,6 +462,8 @@ export async function upgradeStandaloneBinary(
       `Standalone upgrades are only supported on macOS and Linux x64/arm64. Current platform: ${process.platform}/${process.arch}.`,
     );
   }
+
+  const checksumAssetName = `${assetName}.sha256`;
 
   const latestUrl =
     'https://api.github.com/repos/aarondfrancis/counselors/releases/latest';
@@ -332,6 +485,33 @@ export async function upgradeStandaloneBinary(
     throw new Error('Latest release metadata did not include a valid tag.');
   }
 
+  const latestVersion = stripLeadingV(tag);
+  const targetPath = resolveStandaloneTargetPath(binaryPath);
+
+  if (
+    installedVersion &&
+    stripLeadingV(installedVersion.trim()) === latestVersion
+  ) {
+    return {
+      version: latestVersion,
+      tag,
+      assetName,
+      targetPath,
+      didUpgrade: false,
+    };
+  }
+
+  const checksumAsset =
+    release.assets?.find(
+      (a) =>
+        a.name === checksumAssetName &&
+        typeof a.browser_download_url === 'string' &&
+        a.browser_download_url.length > 0,
+    ) ?? null;
+  const checksumUrl =
+    checksumAsset?.browser_download_url ??
+    `https://github.com/aarondfrancis/counselors/releases/download/${tag}/${checksumAssetName}`;
+
   const asset =
     release.assets?.find(
       (a) =>
@@ -342,6 +522,20 @@ export async function upgradeStandaloneBinary(
   const downloadUrl =
     asset?.browser_download_url ??
     `https://github.com/aarondfrancis/counselors/releases/download/${tag}/${assetName}`;
+
+  const checksumRes = await fetchFn(checksumUrl, {
+    headers: { 'User-Agent': 'counselors-cli' },
+  });
+  if (!checksumRes.ok) {
+    throw new Error(
+      `Failed to download checksum ${checksumAssetName} (${checksumRes.status} ${checksumRes.statusText}).`,
+    );
+  }
+  const checksumText = await checksumRes.text();
+  const expectedHash = parseSha256File(checksumText, assetName);
+  if (!expectedHash) {
+    throw new Error(`Could not parse SHA256 from ${checksumAssetName}.`);
+  }
 
   const binaryRes = await fetchFn(downloadUrl, {
     headers: { 'User-Agent': 'counselors-cli' },
@@ -357,13 +551,46 @@ export async function upgradeStandaloneBinary(
     throw new Error('Downloaded binary was empty.');
   }
 
-  const targetPath = resolveStandaloneTargetPath(binaryPath);
   const tempPath = `${targetPath}.tmp-${Date.now()}`;
+  const backupPath = uniqueBackupPath(targetPath);
+
+  const actualHash = sha256(bytes);
+  if (!hashesEqual(actualHash, expectedHash)) {
+    throw new Error(
+      `Checksum mismatch for ${assetName}.\nExpected: ${expectedHash}\nActual:   ${actualHash}`,
+    );
+  }
 
   try {
+    ensureWritable(dirname(targetPath));
+
     writeFileSync(tempPath, bytes, { mode: 0o755 });
-    renameSync(tempPath, targetPath);
-    chmodSync(targetPath, 0o755);
+    chmodSync(tempPath, 0o755);
+
+    // Move current binary out of the way first so we can roll back cleanly.
+    renameSync(targetPath, backupPath);
+
+    try {
+      renameSync(tempPath, targetPath);
+      chmodSync(targetPath, 0o755);
+      validateExecutable(targetPath);
+
+      // Upgrade successful; remove backup.
+      rmSync(backupPath, { force: true });
+    } catch (e) {
+      // Roll back best-effort.
+      try {
+        if (existsSync(targetPath)) rmSync(targetPath, { force: true });
+      } catch {
+        // ignore
+      }
+      try {
+        if (existsSync(backupPath)) renameSync(backupPath, targetPath);
+      } catch {
+        // ignore
+      }
+      throw e;
+    }
   } finally {
     if (existsSync(tempPath)) {
       unlinkSync(tempPath);
@@ -371,10 +598,11 @@ export async function upgradeStandaloneBinary(
   }
 
   return {
-    version: stripLeadingV(tag),
+    version: latestVersion,
     tag,
     assetName,
     targetPath,
+    didUpgrade: true,
   };
 }
 
@@ -510,6 +738,92 @@ function readNpmGlobalVersion(npmPrefix: string): string | null {
   }
 
   return null;
+}
+
+function readNpmGlobalVersionFromNpmLs(
+  captureCommand: (cmd: string, args: string[]) => CaptureResult,
+  npmPath: string,
+): string | null {
+  const result = captureCommand(npmPath, [
+    'ls',
+    '-g',
+    'counselors',
+    '--depth=0',
+    '--json',
+  ]);
+  if (!result.ok) return null;
+  return parseNpmLsVersion(result.stdout);
+}
+
+function parseSha256File(text: string, filename: string): string | null {
+  const lines = text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    // sha256sum: "<hash>  <filename>"
+    let match = line.match(/^([a-fA-F0-9]{64})\s+\*?(.+)$/);
+    if (match) {
+      const hash = match[1]!.toLowerCase();
+      const file = match[2]!.trim();
+      if (file === filename || file.endsWith(`/${filename}`)) return hash;
+      continue;
+    }
+
+    // openssl: "SHA256(filename)= <hash>"
+    match = line.match(/^SHA256\((.+)\)=\s*([a-fA-F0-9]{64})$/);
+    if (match) {
+      const file = match[1]!.trim();
+      const hash = match[2]!.toLowerCase();
+      if (file === filename || file.endsWith(`/${filename}`)) return hash;
+      continue;
+    }
+
+    // bare hash
+    if (/^[a-fA-F0-9]{64}$/.test(line)) return line.toLowerCase();
+  }
+
+  return null;
+}
+
+function sha256(bytes: Buffer): string {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
+function hashesEqual(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function uniqueBackupPath(targetPath: string): string {
+  const base = `${targetPath}.bak`;
+  if (!existsSync(base)) return base;
+  return `${base}.${Date.now()}`;
+}
+
+function ensureWritable(dir: string): void {
+  try {
+    accessSync(dir, constants.W_OK);
+  } catch {
+    throw new Error(
+      `No write permission to upgrade counselors in: ${dir}\n` +
+        `Try reinstalling in ~/.local/bin or use your package manager to upgrade.`,
+    );
+  }
+}
+
+function validateExecutable(path: string): void {
+  try {
+    execFileSync(path, ['--version'], {
+      timeout: VERSION_TIMEOUT,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      encoding: 'utf-8',
+    });
+  } catch (e) {
+    throw new Error(
+      `Post-upgrade validation failed for ${path}: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
 }
 
 function toText(value: unknown): string {

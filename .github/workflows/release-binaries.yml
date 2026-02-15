@@ -25,6 +25,13 @@ jobs:
       - name: Build binaries
         run: bun run scripts/build-binaries.ts
 
+      - name: Generate checksums
+        run: |
+          cd dist
+          for f in counselors-darwin-arm64 counselors-darwin-x64 counselors-linux-x64 counselors-linux-arm64; do
+            sha256sum "$f" > "$f.sha256"
+          done
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -33,3 +40,7 @@ jobs:
             dist/counselors-darwin-x64
             dist/counselors-linux-x64
             dist/counselors-linux-arm64
+            dist/counselors-darwin-arm64.sha256
+            dist/counselors-darwin-x64.sha256
+            dist/counselors-linux-x64.sha256
+            dist/counselors-linux-arm64.sha256
