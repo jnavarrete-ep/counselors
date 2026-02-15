@@ -501,4 +501,93 @@ describe('CLI', () => {
       rmSync(xdg, { recursive: true, force: true });
     }
   });
+
+  it('cleanup refuses to delete in non-interactive mode without --yes', () => {
+    const xdg = mkdtempSync(join(tmpdir(), 'counselors-test-'));
+    try {
+      const configDir = join(xdg, 'counselors');
+      mkdirSync(configDir, { recursive: true });
+
+      const outDir = join(xdg, 'out');
+      mkdirSync(outDir, { recursive: true });
+
+      const oldRun = join(outDir, 'old-run');
+      mkdirSync(oldRun, { recursive: true });
+      const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      utimesSync(oldRun, twoDaysAgo, twoDaysAgo);
+
+      writeFileSync(
+        join(configDir, 'config.json'),
+        `${JSON.stringify(
+          {
+            version: 1,
+            defaults: {
+              timeout: 540,
+              outputDir: outDir,
+              readOnly: 'bestEffort',
+              maxContextKb: 50,
+              maxParallel: 4,
+            },
+            tools: {},
+            groups: {},
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      const output = run('cleanup', { env: { XDG_CONFIG_HOME: xdg } });
+      expect(output).toContain(
+        'Refusing to delete in non-interactive mode without --yes',
+      );
+      expect(existsSync(oldRun)).toBe(true);
+    } finally {
+      rmSync(xdg, { recursive: true, force: true });
+    }
+  });
+
+  it('cleanup --dry-run does not delete anything', () => {
+    const xdg = mkdtempSync(join(tmpdir(), 'counselors-test-'));
+    try {
+      const configDir = join(xdg, 'counselors');
+      mkdirSync(configDir, { recursive: true });
+
+      const outDir = join(xdg, 'out');
+      mkdirSync(outDir, { recursive: true });
+
+      const oldRun = join(outDir, 'old-run');
+      mkdirSync(oldRun, { recursive: true });
+      const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      utimesSync(oldRun, twoDaysAgo, twoDaysAgo);
+
+      writeFileSync(
+        join(configDir, 'config.json'),
+        `${JSON.stringify(
+          {
+            version: 1,
+            defaults: {
+              timeout: 540,
+              outputDir: outDir,
+              readOnly: 'bestEffort',
+              maxContextKb: 50,
+              maxParallel: 4,
+            },
+            tools: {},
+            groups: {},
+          },
+          null,
+          2,
+        )}\n`,
+      );
+
+      const output = run('cleanup --dry-run', {
+        env: { XDG_CONFIG_HOME: xdg },
+      });
+      expect(output).toContain('Dry run: would delete');
+      expect(output).toContain('old-run');
+      expect(existsSync(oldRun)).toBe(true);
+    } finally {
+      rmSync(xdg, { recursive: true, force: true });
+    }
+  });
 });

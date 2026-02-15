@@ -17,6 +17,11 @@ describe('parseDurationMs', () => {
     expect(parseDurationMs('2w')).toBe(2 * 7 * 24 * 60 * 60 * 1000);
   });
 
+  it('supports decimals and trimming', () => {
+    expect(parseDurationMs('1.5h')).toBe(90 * 60 * 1000);
+    expect(parseDurationMs('  1D  ')).toBe(24 * 60 * 60 * 1000);
+  });
+
   it('treats a bare number as days', () => {
     expect(parseDurationMs('7')).toBe(7 * 24 * 60 * 60 * 1000);
   });
@@ -29,6 +34,13 @@ describe('parseDurationMs', () => {
 });
 
 describe('scanCleanupCandidates', () => {
+  it('reports base dir missing', () => {
+    const base = join(tmpdir(), `counselors-cleanup-missing-${Date.now()}`);
+    const result = scanCleanupCandidates(base, Date.now());
+    expect(result.baseExists).toBe(false);
+    expect(result.candidates).toEqual([]);
+  });
+
   it('returns directories older than cutoff', () => {
     const base = join(tmpdir(), `counselors-cleanup-test-${Date.now()}`);
     mkdirSync(base, { recursive: true });
