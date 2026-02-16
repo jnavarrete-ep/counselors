@@ -235,13 +235,25 @@ jobs:
           INSTALL_DIR="$RUNNER_TEMP/counselors-standalone"
           SCRIPT="$RUNNER_TEMP/counselors-install.sh"
 
-          curl -fsSL https://github.com/aarondfrancis/counselors/raw/main/install.sh -o "$SCRIPT"
+          for attempt in {1..8}; do
+            if curl -fsSL "https://raw.githubusercontent.com/aarondfrancis/counselors/v${VERSION}/install.sh" -o "$SCRIPT"; then
+              break
+            fi
+
+            if [ "$attempt" -eq 8 ]; then
+              echo "failed to download install.sh after retries."
+              exit 1
+            fi
+
+            sleep 5
+          done
+
           chmod +x "$SCRIPT"
           rm -rf "$INSTALL_DIR"
           mkdir -p "$INSTALL_DIR"
 
           for attempt in {1..8}; do
-            if INSTALL_DIR="$INSTALL_DIR" bash "$SCRIPT"; then
+            if INSTALL_DIR="$INSTALL_DIR" COUNSELORS_VERSION="$VERSION" GITHUB_TOKEN="${{ github.token }}" bash "$SCRIPT"; then
               break
             fi
 

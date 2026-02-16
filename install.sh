@@ -20,10 +20,33 @@ esac
 
 ASSET="counselors-${OS}-${ARCH}"
 CHECKSUM_ASSET="${ASSET}.sha256"
-LATEST=$(curl -sL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | cut -d'"' -f4)
+
+if [ -n "${COUNSELORS_VERSION:-}" ]; then
+  LATEST="${COUNSELORS_VERSION#refs/tags/}"
+  case "$LATEST" in
+    v*) ;;
+    *) LATEST="v$LATEST" ;;
+  esac
+else
+  API_HEADERS=(-H "Accept: application/vnd.github+json")
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    API_HEADERS+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+  fi
+
+  RELEASES_JSON="$(
+    curl -fsSL "${API_HEADERS[@]}" \
+      "https://api.github.com/repos/${REPO}/releases/latest" || true
+  )"
+  LATEST="$(
+    printf '%s\n' "$RELEASES_JSON" |
+      sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' |
+      head -n 1
+  )"
+fi
 
 if [ -z "$LATEST" ]; then
-  echo "Failed to fetch latest release version." >&2
+  echo "Failed to resolve release version." >&2
+  echo "Set COUNSELORS_VERSION=vX.Y.Z to install a specific version." >&2
   exit 1
 fi
 
