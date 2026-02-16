@@ -118,6 +118,7 @@ jobs:
         with:
           formula-name: counselors
           homebrew-tap: aarondfrancis/homebrew-tap
+          tag-name: v${{ steps.version.outputs.number }}
           download-url: https://registry.npmjs.org/counselors/-/counselors-${{ steps.version.outputs.number }}.tgz
         env:
           COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
