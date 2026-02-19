@@ -6,16 +6,24 @@ import type { Config } from '../../src/types.js';
 
 // We test the dispatch function with a mock executor
 vi.mock('../../src/core/executor.js', () => ({
-  execute: vi.fn().mockImplementation((_inv: any, _timeout: any, onSpawn?: (pid: number | undefined) => void) => {
-    onSpawn?.(12345);
-    return Promise.resolve({
-      exitCode: 0,
-      stdout: 'mock output',
-      stderr: '',
-      timedOut: false,
-      durationMs: 100,
-    });
-  }),
+  execute: vi
+    .fn()
+    .mockImplementation(
+      (
+        _inv: any,
+        _timeout: any,
+        onSpawn?: (pid: number | undefined) => void,
+      ) => {
+        onSpawn?.(12345);
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: 'mock output',
+          stderr: '',
+          timedOut: false,
+          durationMs: 100,
+        });
+      },
+    ),
   captureAmpUsage: vi.fn().mockResolvedValue(null),
   computeAmpCostFromSnapshots: vi.fn().mockReturnValue(null),
 }));
