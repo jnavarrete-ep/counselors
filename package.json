@@ -1,6 +1,6 @@
 {
   "name": "counselors",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "description": "Fan out prompts to multiple AI coding agents in parallel",
   "type": "module",
   "bin": {

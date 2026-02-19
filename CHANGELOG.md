@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.12] - 2026-02-19
+
 ### Fixed
 - `run -f` no longer creates duplicate output directories when the prompt file already lives inside the output base directory
 - Gemini adapter appends a prompt instruction to suppress tool-use narration ("I will read...", "I will list...") that was polluting headless output
+
 
 ## [0.4.11] - 2026-02-19
 
@@ -176,7 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release workflow accepts leading `v` in version input
 
 
-[Unreleased]: https://github.com/aarondfrancis/counselors/compare/v0.4.11...HEAD
+[Unreleased]: https://github.com/aarondfrancis/counselors/compare/v0.4.12...HEAD
 [0.3.0]: https://github.com/aarondfrancis/counselors/releases/tag/v0.3.0
 [0.3.1]: https://github.com/aarondfrancis/counselors/releases/tag/v0.3.1
 [0.3.2]: https://github.com/aarondfrancis/counselors/releases/tag/v0.3.2
@@ -194,3 +197,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.4.9]: https://github.com/aarondfrancis/counselors/releases/tag/v0.4.9
 [0.4.10]: https://github.com/aarondfrancis/counselors/releases/tag/v0.4.10
 [0.4.11]: https://github.com/aarondfrancis/counselors/releases/tag/v0.4.11
+[0.4.12]: https://github.com/aarondfrancis/counselors/releases/tag/v0.4.12
