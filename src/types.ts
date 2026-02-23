@@ -25,7 +25,7 @@ export const ConfigSchema = z.object({
   version: z.literal(1),
   defaults: z
     .object({
-      timeout: z.number().default(540),
+      timeout: z.number().default(900),
       outputDir: z.string().default('./agents/counselors'),
       readOnly: z
         .enum(['enforced', 'bestEffort', 'none'])

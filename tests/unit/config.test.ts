@@ -38,7 +38,7 @@ describe('loadConfig', () => {
   it('returns default config when file does not exist', () => {
     const config = loadConfig(join(testDir, 'nonexistent.json'));
     expect(config.version).toBe(1);
-    expect(config.defaults.timeout).toBe(540);
+    expect(config.defaults.timeout).toBe(900);
     expect(config.defaults.maxParallel).toBe(4);
     expect(Object.keys(config.tools)).toHaveLength(0);
     expect(Object.keys(config.groups)).toHaveLength(0);

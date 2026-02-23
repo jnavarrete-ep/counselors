@@ -25,7 +25,7 @@ function stricterReadOnly(a: ReadOnlyLevel, b: ReadOnlyLevel): ReadOnlyLevel {
 const DEFAULT_CONFIG: Config = {
   version: 1,
   defaults: {
-    timeout: 540,
+    timeout: 900,
     outputDir: './agents/counselors',
     readOnly: 'bestEffort',
     maxContextKb: 50,

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Built-in presets are now YAML files with schema validation instead of hardcoded TypeScript
 - Output directory names include a timestamp prefix for uniqueness (e.g. `1740300000-bughunt`)
 - Output paths are always absolute, consistent across single `run` and `loop` commands
+- Default tool timeout increased from 9 minutes to 15 minutes
 - Non-TTY output is purpose-built for agent consumers with structured lifecycle messages (phase started/completed, tool started/completed with PID and duration)
 - Replaced monolithic `ProgressDisplay` with event-driven Reporter interface — `TerminalReporter` for TTY, `AgentReporter` for non-TTY, `NullReporter` for dry-run
 - Loop prompt augmentation now uses stronger multi-round guidance: challenge prior findings, use prior findings as leads, and mark overlap status (`confirmed`, `refined`, `invalidated`, `duplicate`)
