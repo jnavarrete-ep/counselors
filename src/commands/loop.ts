@@ -27,7 +27,7 @@ export function registerLoopCommand(program: Command): void {
   const loopCmd = program
     .command('loop [prompt]')
     .description(
-      'Multi-round dispatch — agents iterate, seeing prior outputs each round',
+      'Multi-round dispatch — tools (agents) iterate, seeing prior outputs each round',
     )
     .option('-f, --file <path>', 'Use a pre-built prompt file (no wrapping)')
     .option('-t, --tools <tools>', 'Comma-separated list of tools to use')
@@ -40,7 +40,7 @@ export function registerLoopCommand(program: Command): void {
       'Gather context from paths (comma-separated, or "." for git diff)',
     )
     .option('--read-only <level>', 'Read-only policy: strict, best-effort, off')
-    .option('--rounds <N>', 'Number of dispatch rounds (default: 3)', '3')
+    .option('--rounds <N>', 'Number of dispatch rounds', '3')
     .option('--duration <time>', 'Max total duration (e.g. "30m", "1h")')
     .option('--preset <name>', 'Use a built-in preset (e.g. "bughunt")')
     .option('--list-presets', 'List built-in presets and exit')
@@ -50,7 +50,7 @@ export function registerLoopCommand(program: Command): void {
     )
     .option(
       '--convergence-threshold <ratio>',
-      'Word count ratio for early stop (default: 0.3)',
+      'Word count ratio for early stop',
       '0.3',
     )
     .option('--dry-run', 'Show what would be dispatched without running')

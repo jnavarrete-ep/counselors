@@ -17,6 +17,8 @@ description: Get parallel second opinions from multiple AI coding agents. Use wh
 
 Fan out a prompt to multiple AI coding agents in parallel and synthesize their responses.
 
+Use \`run\` for single-shot parallel review, or \`loop\` for iterative multi-round analysis.
+
 Arguments: $ARGUMENTS
 
 **If no arguments provided**, ask the user what they want reviewed.
@@ -31,11 +33,29 @@ Parse \`$ARGUMENTS\` to understand what the user wants reviewed. Then identify r
 2. **Recent changes**: Run \`git diff HEAD\` and \`git diff --staged\` to identify what changed
 3. **Related code**: Search for key terms from the prompt to identify the most relevant files (up to 5 files)
 
-**Important**: You do NOT need to read and inline every file. Subagents have access to the filesystem and git — they can read files and run git commands themselves. Your job is to *identify* the relevant files and reference them, not to copy their contents into the prompt. See Phase 3 for how to use \`@file\` references.
+**Important**: You do NOT need to read and inline every file. Subagents have access to the filesystem and git — they can read files and run git commands themselves. Your job is to *identify* the relevant files and reference them, not to copy their contents into the prompt. See Phase 4 for how to use \`@file\` references.
 
 ---
 
-## Phase 2: Agent Selection
+## Phase 2: Dispatch Mode Selection
+
+Decide whether this request should use \`run\` or \`loop\`.
+
+1. **Default to \`run\`** for a quick second-opinion pass.
+2. **Use \`loop\`** when the user wants deeper iterative analysis, broad hunts, or multi-round convergence.
+3. If using \`loop\`, choose one of two loop modes:
+   - **Preset loop**: use \`--preset\` for domain workflows (bug, security, state, regression, API contracts, performance)
+   - **Custom loop**: no preset; you write a full prompt file just like \`run\`, but dispatch with \`counselors loop\`
+
+If the user says "use a preset" or names one, run:
+\`\`\`bash
+counselors loop --list-presets
+\`\`\`
+Print the output and have them pick a preset.
+
+---
+
+## Phase 3: Agent Selection
 
 1. **Discover available agents and groups** by running via Bash:
    \`\`\`bash
@@ -66,26 +86,14 @@ Parse \`$ARGUMENTS\` to understand what the user wants reviewed. Then identify r
 
    > Dispatching to: **claude-opus**, **codex-5.3-high**, **gemini-pro**
 
-   Then ask the user to confirm (e.g. "Look good?") before proceeding to Phase 3. This prevents silent tool omissions. If the user corrects the list, update your selection accordingly.
+   Then ask the user to confirm (e.g. "Look good?") before proceeding to Phase 4. This prevents silent tool omissions. If the user corrects the list, update your selection accordingly.
 
 ---
 
-## Phase 3: Prompt Assembly
+## Phase 4: Prompt Assembly
 
-1. **Generate a slug** from the topic (lowercase, hyphens, max 40 chars)
-   - "review the auth flow" → \`auth-flow-review\`
-   - "is this migration safe" → \`migration-safety-review\`
-
-2. **Create the output directory** via Bash inside your project's counselors output directory (default: \`agents/counselors/\`) in your current working directory. The directory name MUST always be prefixed with a UNIX timestamp (seconds) so runs are lexically sortable and never collide:
-   \`\`\`
-   <cwd>/<outputDir>/TIMESTAMP-[slug]
-   \`\`\`
-   By default, \`<outputDir>\` is \`agents/counselors\`, but users can customize it via config (\`defaults.outputDir\`) or the \`counselors run -o <dir>\` flag.
-   For example, if your cwd is \`/Users/me/project\`: \`/Users/me/project/agents/counselors/1770676882-auth-flow-review\`
-
-3. **Write the prompt file** using the Write tool to the directory you just created — \`<cwd>/<outputDir>/TIMESTAMP-[slug]/prompt.md\`. Use an absolute path based on your current working directory, NOT a relative path.
-
-   **IMPORTANT:** Do NOT write the prompt file to \`/tmp\`, \`~/tmp\`, or any temporary directory outside the project. Counselor agents are sandboxed to the project directory and will not have access to files outside it. The file MUST be inside the \`<outputDir>\` directory you just created.
+For \`run\` and custom \`loop\` modes, assemble the review prompt content.
+For preset loop mode, skip this phase and prepare a concise focus string instead.
 
    **Subagents can read files and use git.** You do NOT need to inline file contents or diff output into the prompt. Instead, use \`@path/to/file\` references to point subagents at the relevant files. They will read the files themselves. This keeps the prompt concise and avoids bloating it with copied code.
 
@@ -121,12 +129,24 @@ You are providing an independent review. Be critical and thorough.
 
 ---
 
-## Phase 4: Dispatch
+## Phase 5: Dispatch
 
-Run counselors via Bash with the prompt file (using the absolute path from Phase 3), passing the user's selected agents:
+Dispatch based on the selected mode.
+
+### Mode A: \`run\` (single-shot)
+
+First, create the output directory + \`prompt.md\` via counselors itself by piping your assembled prompt content:
 
 \`\`\`bash
-counselors run -f <cwd>/<outputDir>/TIMESTAMP-[slug]/prompt.md --tools [comma-separated-tool-ids] --json
+cat <<'PROMPT' | counselors mkdir --json
+[assembled prompt content from Phase 4]
+PROMPT
+\`\`\`
+
+Parse the JSON output and read \`promptFilePath\`, then dispatch with that path:
+
+\`\`\`bash
+counselors run -f <promptFilePath> --tools [comma-separated-tool-ids] --json
 \`\`\`
 
 Examples:
@@ -134,15 +154,36 @@ Examples:
 - \`--group smart\` (uses the configured group)
 - \`--group smart --tools codex\` (group plus explicit tools)
 
+### Mode B: \`loop\` + custom prompt (iterative, no preset)
+
+As with Mode A, first create \`prompt.md\` via \`counselors mkdir --json\`, then run:
+
+\`\`\`bash
+counselors loop -f <promptFilePath> --tools [comma-separated-tool-ids] --json
+\`\`\`
+
+You may add \`--rounds <N>\` or \`--duration <time>\` for loop runs.
+
+### Mode C: \`loop\` + preset (iterative, preset-driven)
+
+For preset mode, do NOT write a full prompt file. Pass a concise focus string instead.
+
+\`\`\`bash
+counselors loop --preset <preset-name> "<focus area>" --tools [comma-separated-tool-ids] --json
+\`\`\`
+
+Example:
+- \`counselors loop --preset hotspots "critical request path" --group smart --duration 20m --json\`
+
 Use \`timeout: 600000\` (10 minutes). Counselors dispatches to the selected agents in parallel and writes results to the output directory shown in the JSON output.
 
-**Important**: Use \`-f\` (file mode) so the prompt is sent as-is without wrapping. Use \`--json\` to get structured output for parsing.
+**Important**: For run/custom-loop file mode, use \`-f\` so the prompt is sent as-is without wrapping. Use \`--json\` on both \`mkdir\` and dispatch commands to get structured output for parsing.
 
 **Timing**: Sessions commonly take more than 10 minutes. Counselors prints each child process PID alongside the agent name in its progress output (e.g. \`PID 12345  claude\`). If a run seems stuck, you can verify processes are still alive with \`ps -p <PID>\` (macOS/Linux) or \`tasklist /FI "PID eq <PID>"\` (Windows).
 
 ---
 
-## Phase 5: Read Results
+## Phase 6: Read Results
 
 1. **Parse the JSON output** from stdout — it contains the run manifest with status, duration, word count, and output file paths for each agent
 2. **Read each agent's response** from the \`outputFile\` path in the manifest
@@ -151,7 +192,7 @@ Use \`timeout: 600000\` (10 minutes). Counselors dispatches to the selected agen
 
 ---
 
-## Phase 6: Synthesize and Present
+## Phase 7: Synthesize and Present
 
 Combine all agent responses into a synthesis:
 
@@ -178,7 +219,7 @@ Present this synthesis to the user. Be concise — the individual reports are sa
 
 ---
 
-## Phase 7: Action (Optional)
+## Phase 8: Action (Optional)
 
 After presenting the synthesis, ask the user what they'd like to address. Offer the top 2-3 actionable items from the synthesis as options. If the user wants to act on findings, plan the implementation before making changes.
 
@@ -187,7 +228,7 @@ After presenting the synthesis, ask the user what they'd like to address. Offer 
 ## Error Handling
 
 - **counselors not installed**: Tell the user to install it (\`npm install -g counselors\`)
-- **No tools configured**: Tell the user to run \`counselors init\` or \`counselors add\`
+- **No tools configured**: Tell the user to run \`counselors init\` or \`counselors tools add <tool>\`
 - **Agent fails**: Note it in the synthesis and continue with other agents' results
 - **All agents fail**: Report errors from stderr files and suggest checking \`counselors doctor\`
 `;

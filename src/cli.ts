@@ -8,6 +8,7 @@ import { registerGroupListCommand } from './commands/groups/list.js';
 import { registerGroupRemoveCommand } from './commands/groups/remove.js';
 import { registerInitCommand } from './commands/init.js';
 import { registerLoopCommand } from './commands/loop.js';
+import { registerMakeDirCommand } from './commands/make-dir.js';
 import { registerRunCommand } from './commands/run.js';
 import { registerSkillCommand } from './commands/skill.js';
 import { registerAddCommand } from './commands/tools/add.js';
@@ -23,12 +24,13 @@ const program = new Command();
 
 program
   .name('counselors')
-  .description('Fan out prompts to multiple AI coding agents in parallel')
+  .description('Fan out prompts to multiple AI coding tools (agents) in parallel')
   .version(VERSION);
 
 // Top-level commands
 registerRunCommand(program);
 registerLoopCommand(program);
+registerMakeDirCommand(program);
 registerCleanupCommand(program);
 registerConfigCommand(program);
 registerDoctorCommand(program);

@@ -26,7 +26,7 @@ export function registerCleanupCommand(program: Command): void {
     .description('Delete run output directories older than a given age')
     .option(
       '--older-than <duration>',
-      'Delete runs older than this age (e.g. 1d, 12h, 30m). Defaults to 1d. A bare number is days.',
+      'Delete runs older than this age (e.g. 1d, 12h, 30m, 2w, 500ms). Defaults to 1d. A bare number is days.',
       '1d',
     )
     .option(
