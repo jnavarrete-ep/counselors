@@ -127,21 +127,31 @@ Each round dispatches to all tools in parallel. Starting from round 2, each agen
 ```bash
 counselors loop "Find and fix test gaps in src/auth/" --rounds 5
 counselors loop --duration 30m "Hunt for edge cases"
-counselors loop --preset test --scope src/api/
+counselors loop --preset bughunt "src/api"
+counselors loop --preset hotspots "critical request path"
+counselors loop --list-presets
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--rounds <N>` | Number of dispatch rounds (default: 3) |
 | `--duration <time>` | Max total duration (e.g. `"30m"`, `"1h"`). If set without `--rounds`, runs unlimited rounds until time expires |
-| `--preset <name>` | Use a built-in preset (e.g. `"test"`) |
-| `--scope <path>` | Constrain preset discovery to a directory |
+| `--preset <name>` | Use a built-in preset (e.g. `"bughunt"`) |
+| `--list-presets` | List built-in presets and exit |
 
 Plus all `run` flags: `-f`, `-t`, `-g`, `--context`, `--read-only`, `--dry-run`, `--json`, `-o`.
 
 **SIGINT handling:** First Ctrl+C finishes the current round gracefully. Second Ctrl+C force-exits immediately.
 
-**Presets** provide domain-specific multi-round workflows. The `test` preset discovers test files, runs agents to find bugs, and iterates to find new issues each round.
+**Presets** provide domain-specific multi-round workflows.
+
+Built-ins:
+- `bughunt` — bugs, edge cases, and missing test coverage
+- `security` — exploitable vulnerabilities and high-impact security flaws
+- `invariants` — impossible states and state synchronization problems
+- `regression` — behavior changes likely to break existing callers/users
+- `contracts` — mismatches between API producers and consumers
+- `hotspots` — high-impact bottlenecks, including O(n^2)+ patterns
 
 ### `init`
 

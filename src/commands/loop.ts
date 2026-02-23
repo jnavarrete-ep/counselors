@@ -8,7 +8,7 @@ import { runLoop } from '../core/loop.js';
 import { writePrompt } from '../core/prompt-writer.js';
 import { runRepoDiscovery } from '../core/repo-discovery.js';
 import { synthesizeFinal } from '../core/synthesis.js';
-import { resolvePreset } from '../presets/index.js';
+import { getPresetNames, resolvePreset } from '../presets/index.js';
 import type { PresetDefinition } from '../presets/types.js';
 import type { RunManifest } from '../types.js';
 import { error, info } from '../ui/logger.js';
@@ -42,7 +42,8 @@ export function registerLoopCommand(program: Command): void {
     .option('--read-only <level>', 'Read-only policy: strict, best-effort, off')
     .option('--rounds <N>', 'Number of dispatch rounds (default: 3)', '3')
     .option('--duration <time>', 'Max total duration (e.g. "30m", "1h")')
-    .option('--preset <name>', 'Use a built-in preset (e.g. "bug-hunt")')
+    .option('--preset <name>', 'Use a built-in preset (e.g. "bughunt")')
+    .option('--list-presets', 'List built-in presets and exit')
     .option(
       '--discovery-tool <id>',
       'Tool for discovery and prompt-writing phases (default: first tool)',
@@ -68,6 +69,7 @@ export function registerLoopCommand(program: Command): void {
           rounds?: string;
           duration?: string;
           preset?: string;
+          listPresets?: boolean;
           discoveryTool?: string;
           convergenceThreshold?: string;
           dryRun?: boolean;
@@ -76,6 +78,23 @@ export function registerLoopCommand(program: Command): void {
         },
       ) => {
         const cwd = process.cwd();
+
+        if (opts.listPresets) {
+          const names = getPresetNames();
+          if (names.length === 0) {
+            info('No built-in presets found.');
+            return;
+          }
+
+          info('Built-in presets:');
+          for (const name of names) {
+            const preset = resolvePreset(name);
+            const firstLine = preset.description.split('\n')[0]?.trim() ?? '';
+            const rounds = preset.defaultRounds ?? 3;
+            info(`- ${name} (rounds: ${rounds}): ${firstLine}`);
+          }
+          return;
+        }
 
         // Resolve tools
         const resolved = await resolveTools(opts, cwd);

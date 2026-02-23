@@ -1,4 +1,4 @@
-name: state-drift
+name: invariants
 description: |
   You are auditing a codebase for state synchronization issues, impossible states, and state management anti-patterns.
 

@@ -210,7 +210,13 @@ function augmentPromptWithPriorOutputs(
 
 ## Prior Round Outputs
 
-The following files contain outputs from previous rounds. Review them to build on prior analysis and avoid repeating the same findings.
+The following files contain outputs from previous rounds. Use them to improve quality, not just avoid duplicates.
+
+Round instructions:
+- Do not repeat the same finding unless you add meaningful new evidence.
+- Challenge prior findings: try to invalidate, narrow, or refine high-impact claims.
+- Treat prior findings as leads: follow adjacent code paths, shared utilities, and similar patterns.
+- For any finding that overlaps prior rounds, clearly label status as confirmed, refined, invalidated, or duplicate and explain what is new.
 
 ${refs}
 `;

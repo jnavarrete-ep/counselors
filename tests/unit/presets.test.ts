@@ -9,24 +9,24 @@ import {
 } from '../../src/presets/index.js';
 
 describe('resolvePreset', () => {
-  it('returns the bug-hunt preset by name', () => {
-    const preset = resolvePreset('bug-hunt');
-    expect(preset.name).toBe('bug-hunt');
+  it('returns the bughunt preset by name', () => {
+    const preset = resolvePreset('bughunt');
+    expect(preset.name).toBe('bughunt');
     expect(preset.description).toContain('bugs');
     expect(preset.defaultRounds).toBe(3);
     expect(preset.defaultReadOnly).toBe('enforced');
   });
 
-  it('bug-hunt description preserves multi-line content', () => {
-    const preset = resolvePreset('bug-hunt');
+  it('bughunt description preserves multi-line content', () => {
+    const preset = resolvePreset('bughunt');
     expect(preset.description).toContain('\n');
     expect(preset.description).toContain('Logic errors');
-    expect(preset.description).toContain('Race conditions');
+    expect(preset.description).toContain('race conditions');
   });
 
-  it('returns the state-drift preset', () => {
-    const preset = resolvePreset('state-drift');
-    expect(preset.name).toBe('state-drift');
+  it('returns the invariants preset', () => {
+    const preset = resolvePreset('invariants');
+    expect(preset.name).toBe('invariants');
     expect(preset.description).toContain('impossible states');
     expect(preset.description).toContain('Boolean explosion');
     expect(preset.defaultRounds).toBe(3);
@@ -42,11 +42,38 @@ describe('resolvePreset', () => {
     expect(preset.defaultReadOnly).toBe('enforced');
   });
 
+  it('returns the regression preset', () => {
+    const preset = resolvePreset('regression');
+    expect(preset.name).toBe('regression');
+    expect(preset.description).toContain('regression risk');
+    expect(preset.description).toContain('Contract drift');
+    expect(preset.defaultRounds).toBe(3);
+    expect(preset.defaultReadOnly).toBe('enforced');
+  });
+
+  it('returns the contracts preset', () => {
+    const preset = resolvePreset('contracts');
+    expect(preset.name).toBe('contracts');
+    expect(preset.description).toContain('API contract drift');
+    expect(preset.description).toContain('Optional vs required drift');
+    expect(preset.defaultRounds).toBe(3);
+    expect(preset.defaultReadOnly).toBe('enforced');
+  });
+
+  it('returns the hotspots preset', () => {
+    const preset = resolvePreset('hotspots');
+    expect(preset.name).toBe('hotspots');
+    expect(preset.description).toContain('asymptotic complexity');
+    expect(preset.description).toContain('O(n^2)');
+    expect(preset.defaultRounds).toBe(4);
+    expect(preset.defaultReadOnly).toBe('enforced');
+  });
+
   it('throws for unknown preset with available names', () => {
     expect(() => resolvePreset('nonexistent')).toThrow(
       'Unknown preset "nonexistent"',
     );
-    expect(() => resolvePreset('nonexistent')).toThrow('bug-hunt');
+    expect(() => resolvePreset('nonexistent')).toThrow('bughunt');
   });
 
   it('throws for empty string', () => {
@@ -212,8 +239,11 @@ description: |
 describe('getPresetNames', () => {
   it('returns all built-in preset names', () => {
     const names = getPresetNames();
-    expect(names).toContain('bug-hunt');
-    expect(names).toContain('state-drift');
+    expect(names).toContain('bughunt');
+    expect(names).toContain('contracts');
+    expect(names).toContain('hotspots');
+    expect(names).toContain('invariants');
+    expect(names).toContain('regression');
     expect(names).toContain('security');
   });
 

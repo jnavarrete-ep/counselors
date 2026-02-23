@@ -648,6 +648,7 @@ describe('CLI', () => {
     expect(output).toContain('--rounds');
     expect(output).toContain('--duration');
     expect(output).toContain('--preset');
+    expect(output).toContain('--list-presets');
     expect(output).toContain('--discovery-tool');
     expect(output).toContain('--convergence-threshold');
     expect(output).toContain('--file');
@@ -672,6 +673,20 @@ describe('CLI', () => {
       env: { XDG_CONFIG_HOME: '/tmp/counselors-test-nonexistent' },
     });
     expect(output).toContain('No tools configured');
+  });
+
+  it('loop --list-presets prints built-in presets without requiring config', () => {
+    const output = run('loop --list-presets', {
+      env: { XDG_CONFIG_HOME: '/tmp/counselors-test-nonexistent' },
+    });
+
+    expect(output).toContain('Built-in presets:');
+    expect(output).toContain('bughunt');
+    expect(output).toContain('contracts');
+    expect(output).toContain('hotspots');
+    expect(output).toContain('invariants');
+    expect(output).toContain('regression');
+    expect(output).toContain('security');
   });
 
   it('loop --dry-run shows round plan info', () => {
@@ -797,7 +812,7 @@ describe('CLI', () => {
     }
   });
 
-  it('loop --preset resolves the bug-hunt preset in dry-run', () => {
+  it('loop --preset resolves the bughunt preset in dry-run', () => {
     const xdg = mkdtempSync(join(tmpdir(), 'counselors-test-'));
     try {
       const configDir = join(xdg, 'counselors');
@@ -828,13 +843,13 @@ describe('CLI', () => {
       );
 
       const output = run(
-        'loop --dry-run --preset bug-hunt "the billing module" -t claude',
+        'loop --dry-run --preset bughunt "the billing module" -t claude',
         { env: { XDG_CONFIG_HOME: xdg } },
       );
 
       // In dry-run mode, the preset is resolved and shown in the output
       // without running the actual discovery and prompt-writing phases.
-      expect(output).toContain('Preset: bug-hunt');
+      expect(output).toContain('Preset: bughunt');
     } finally {
       rmSync(xdg, { recursive: true, force: true });
     }
