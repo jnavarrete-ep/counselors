@@ -104,9 +104,7 @@ Output ONLY the prompt text. Do not include any meta-commentary, markdown fences
   });
 
   if (result.timedOut) {
-    throw new Error(
-      `Prompt writing timed out after ${timeout}s.`,
-    );
+    throw new Error(`Prompt writing timed out after ${timeout}s.`);
   }
 
   if (result.exitCode !== 0) {

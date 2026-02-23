@@ -45,7 +45,10 @@ describe('buildToolReport', () => {
   });
 
   it('builds a timeout report', () => {
-    const report = buildToolReport('amp', makeResult({ timedOut: true, exitCode: 1 }));
+    const report = buildToolReport(
+      'amp',
+      makeResult({ timedOut: true, exitCode: 1 }),
+    );
     expect(report.status).toBe('timeout');
   });
 

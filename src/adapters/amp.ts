@@ -38,7 +38,9 @@ export class AmpAdapter extends BaseAdapter {
   ];
 
   getEffectiveReadOnlyLevel(toolConfig: ToolConfig): ReadOnlyLevel {
-    return isAmpDeepMode(toolConfig.extraFlags) ? 'bestEffort' : this.readOnly.level;
+    return isAmpDeepMode(toolConfig.extraFlags)
+      ? 'bestEffort'
+      : this.readOnly.level;
   }
 
   buildInvocation(req: RunRequest): Invocation {

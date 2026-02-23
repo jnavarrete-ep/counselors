@@ -2,27 +2,27 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Config } from '../../src/types.js';
 
 vi.mock('../../src/core/executor.js', () => ({
-  execute: vi.fn().mockImplementation(
-    async (
-      _inv: any,
-      _timeout: any,
-      onSpawn?: (pid: number | undefined) => void,
-    ) => {
-      onSpawn?.(9999);
-      return {
-        exitCode: 0,
-        stdout: '  TypeScript, Node.js\nsrc/, lib/  ',
-        stderr: '',
-        timedOut: false,
-        durationMs: 500,
-      };
-    },
-  ),
+  execute: vi
+    .fn()
+    .mockImplementation(
+      async (
+        _inv: any,
+        _timeout: any,
+        onSpawn?: (pid: number | undefined) => void,
+      ) => {
+        onSpawn?.(9999);
+        return {
+          exitCode: 0,
+          stdout: '  TypeScript, Node.js\nsrc/, lib/  ',
+          stderr: '',
+          timedOut: false,
+          durationMs: 500,
+        };
+      },
+    ),
 }));
 
-const { runRepoDiscovery } = await import(
-  '../../src/core/repo-discovery.js'
-);
+const { runRepoDiscovery } = await import('../../src/core/repo-discovery.js');
 const { execute } = await import('../../src/core/executor.js');
 const mockExecute = vi.mocked(execute);
 

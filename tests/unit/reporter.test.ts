@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { NullReporter, createReporter } from '../../src/ui/reporter.js';
+import { createReporter, NullReporter } from '../../src/ui/reporter.js';
 
 describe('NullReporter', () => {
   it('has all interface methods as no-ops', () => {
@@ -87,9 +87,7 @@ describe('createReporter', () => {
       configurable: true,
     });
     try {
-      const { AgentReporter } = await import(
-        '../../src/ui/agent-reporter.js'
-      );
+      const { AgentReporter } = await import('../../src/ui/agent-reporter.js');
       const r = createReporter();
       expect(r).toBeInstanceOf(AgentReporter);
     } finally {

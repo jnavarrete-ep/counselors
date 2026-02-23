@@ -1,9 +1,9 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
-import { PresetDefinitionSchema } from './types.js';
 import type { PresetDefinition } from './types.js';
+import { PresetDefinitionSchema } from './types.js';
 
 function findPackageRoot(): string {
   let dir = dirname(fileURLToPath(import.meta.url));

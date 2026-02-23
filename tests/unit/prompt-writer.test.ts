@@ -2,22 +2,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Config } from '../../src/types.js';
 
 vi.mock('../../src/core/executor.js', () => ({
-  execute: vi.fn().mockImplementation(
-    async (
-      _inv: any,
-      _timeout: any,
-      onSpawn?: (pid: number | undefined) => void,
-    ) => {
-      onSpawn?.(9999);
-      return {
-        exitCode: 0,
-        stdout: '  Generated execution prompt for bug hunting  ',
-        stderr: '',
-        timedOut: false,
-        durationMs: 2000,
-      };
-    },
-  ),
+  execute: vi
+    .fn()
+    .mockImplementation(
+      async (
+        _inv: any,
+        _timeout: any,
+        onSpawn?: (pid: number | undefined) => void,
+      ) => {
+        onSpawn?.(9999);
+        return {
+          exitCode: 0,
+          stdout: '  Generated execution prompt for bug hunting  ',
+          stderr: '',
+          timedOut: false,
+          durationMs: 2000,
+        };
+      },
+    ),
 }));
 
 const { writePrompt } = await import('../../src/core/prompt-writer.js');

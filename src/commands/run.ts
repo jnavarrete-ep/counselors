@@ -1,8 +1,8 @@
 import { resolve } from 'node:path';
 import type { Command } from 'commander';
 import { dispatch } from '../core/dispatcher.js';
-import { generateSlug } from '../core/prompt-builder.js';
 import { safeWriteFile } from '../core/fs-utils.js';
+import { generateSlug } from '../core/prompt-builder.js';
 import { synthesize } from '../core/synthesis.js';
 import type { RunManifest, ToolReport } from '../types.js';
 import { info } from '../ui/logger.js';

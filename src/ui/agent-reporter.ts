@@ -120,7 +120,8 @@ export class AgentReporter implements Reporter {
       timing += ' \u00b7 Ctrl+C to stop';
       this.stderr(`  ${timing}`);
     }
-    const roundLabel = totalRounds != null ? `${round}/${totalRounds}` : `${round}`;
+    const roundLabel =
+      totalRounds != null ? `${round}/${totalRounds}` : `${round}`;
     this.stderr(`  \u2500\u2500 Round ${roundLabel} \u2500\u2500`);
     // Reset tool states for new round
     for (const [id] of this.tools) {

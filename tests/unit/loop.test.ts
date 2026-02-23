@@ -10,26 +10,34 @@ let wordCountsByRound: number[] = [];
 const dispatchPrompts: string[] = [];
 
 vi.mock('../../src/core/dispatcher.js', () => ({
-  dispatch: vi.fn().mockImplementation(async (opts: { outputDir: string; promptContent: string }) => {
-    const round = dispatchCallCount++;
-    dispatchPrompts.push(opts.promptContent);
+  dispatch: vi
+    .fn()
+    .mockImplementation(
+      async (opts: { outputDir: string; promptContent: string }) => {
+        const round = dispatchCallCount++;
+        dispatchPrompts.push(opts.promptContent);
 
-    // Simulate report files that later rounds can reference.
-    writeFileSync(join(opts.outputDir, 'claude.md'), `round-${round + 1}`, 'utf-8');
+        // Simulate report files that later rounds can reference.
+        writeFileSync(
+          join(opts.outputDir, 'claude.md'),
+          `round-${round + 1}`,
+          'utf-8',
+        );
 
-    const wordCount =
-      round < wordCountsByRound.length ? wordCountsByRound[round] : 100;
-    const report: ToolReport = {
-      toolId: 'claude',
-      status: 'success',
-      exitCode: 0,
-      durationMs: 100,
-      wordCount,
-      outputFile: '',
-      stderrFile: '',
-    };
-    return [report];
-  }),
+        const wordCount =
+          round < wordCountsByRound.length ? wordCountsByRound[round] : 100;
+        const report: ToolReport = {
+          toolId: 'claude',
+          status: 'success',
+          exitCode: 0,
+          durationMs: 100,
+          wordCount,
+          outputFile: '',
+          stderrFile: '',
+        };
+        return [report];
+      },
+    ),
 }));
 
 vi.mock('../../src/core/executor.js', () => ({
@@ -117,9 +125,7 @@ describe('runLoop', () => {
   it('sets outcome to aborted when duration limit is reached', async () => {
     // Each dispatch takes ~0ms in mocks, so set durationMs to 0
     // to trigger the duration check on round 2+
-    const result = await runLoop(
-      baseOptions({ rounds: 5, durationMs: 0 }),
-    );
+    const result = await runLoop(baseOptions({ rounds: 5, durationMs: 0 }));
 
     // Only round 1 should complete — the duration check fires before round 2
     expect(result.rounds).toHaveLength(1);
@@ -130,8 +136,11 @@ describe('runLoop', () => {
     await runLoop(baseOptions({ rounds: 30 }));
 
     const finalPrompt = dispatchPrompts.at(-1) ?? '';
-    expect(finalPrompt).toContain('Only the most recent 8 outputs are included');
-    const refCount = (finalPrompt.match(/@.*round-\d+\/claude\.md/g) ?? []).length;
+    expect(finalPrompt).toContain(
+      'Only the most recent 8 outputs are included',
+    );
+    const refCount = (finalPrompt.match(/@.*round-\d+\/claude\.md/g) ?? [])
+      .length;
     expect(refCount).toBe(8);
   });
 

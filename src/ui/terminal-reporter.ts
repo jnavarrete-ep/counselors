@@ -287,9 +287,7 @@ export class TerminalReporter implements Reporter {
           : '0.0';
         const pidPrefix = tool.pid ? `PID ${tool.pid}  ` : '';
         const fullLabel = `${pidPrefix}${label}`;
-        const pad = ' '.repeat(
-          Math.max(0, LABEL_COL_WIDTH - fullLabel.length),
-        );
+        const pad = ' '.repeat(Math.max(0, LABEL_COL_WIDTH - fullLabel.length));
         return `  ${spinner} ${fullLabel}${pad}running  ${elapsed.padStart(6)}s`;
       }
       case 'done': {

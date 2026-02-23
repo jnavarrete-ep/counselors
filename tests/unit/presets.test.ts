@@ -105,7 +105,9 @@ describe('resolvePreset', () => {
 
   it('treats bare .yml name without path separator as file path', () => {
     // "my-preset.yml" ends with .yml so isFilePath returns true
-    expect(() => resolvePreset('my-preset.yml')).toThrow('Preset file not found');
+    expect(() => resolvePreset('my-preset.yml')).toThrow(
+      'Preset file not found',
+    );
   });
 
   it('treats input with backslash as file path', () => {
