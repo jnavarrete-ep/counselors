@@ -48,6 +48,7 @@ Decide whether this request should use \`run\` or \`loop\`.
 3. If using \`loop\`, choose one of two loop modes:
    - **Preset loop**: use \`--preset\` for domain workflows (bug, security, state, regression, API contracts, performance)
    - **Custom loop**: no preset; you write a full prompt file just like \`run\`, but dispatch with \`counselors loop\`
+   - **Inline loop**: pass a short prompt string directly (no \`-f\`); counselors automatically runs discovery + prompt-writing phases to expand it into a full execution prompt. Use \`--no-inline-enhancement\` to skip this and send the raw prompt as-is.
 
 If the user says "use a preset" or names one, run:
 \`\`\`bash
@@ -90,12 +91,16 @@ Print the output and have them pick a preset.
 
    Then ask the user to confirm (e.g. "Look good?") before proceeding to Phase 4. This prevents silent tool omissions. If the user corrects the list, update your selection accordingly.
 
+5. **Discovery tool (loop only)**: By default, the first tool in your selection runs the discovery and prompt-writing prep phases. To use a different agent for these phases, pass \`--discovery-tool <id>\`.
+
 ---
 
 ## Phase 4: Prompt Assembly
 
-For \`run\` and custom \`loop\` modes, assemble the review prompt content.
-For preset loop mode, skip this phase and prepare a concise focus string instead.
+For \`run\` and custom \`loop\` (file-based) modes, assemble the review prompt content.
+For preset loop mode and inline loop mode, skip this phase — counselors handles prompt generation automatically via discovery + prompt-writing phases (see Phase 5).
+
+**Note:** Counselors automatically appends execution boilerplate (general guidelines about focusing on source dirs, skipping vendor/binary files, providing file paths for findings) to every prompt before dispatch. You do not need to include these instructions yourself.
 
    **Subagents can read files and use git.** You do NOT need to inline file contents or diff output into the prompt. Instead, use \`@path/to/file\` references to point subagents at the relevant files. They will read the files themselves. This keeps the prompt concise and avoids bloating it with copied code.
 
@@ -156,7 +161,7 @@ Examples:
 - \`--group smart\` (uses the configured group)
 - \`--group smart --tools codex\` (group plus explicit tools)
 
-### Mode B: \`loop\` + custom prompt (iterative, no preset)
+### Mode B: \`loop\` + custom prompt file (iterative, no preset)
 
 As with Mode A, first create \`prompt.md\` via \`counselors mkdir --json\`, then run:
 
@@ -164,11 +169,26 @@ As with Mode A, first create \`prompt.md\` via \`counselors mkdir --json\`, then
 counselors loop -f <promptFilePath> --tools [comma-separated-tool-ids] --json
 \`\`\`
 
-You may add \`--rounds <N>\` or \`--duration <time>\` for loop runs.
+Using \`-f\` skips the discovery/prompt-writing phases and sends the prompt as-is. You may add these optional flags:
+- \`--rounds <N>\` — number of rounds (default: 3)
+- \`--duration <time>\` — max wall time (e.g. \`30m\`, \`1h\`); when set without explicit \`--rounds\`, rounds are unlimited
+- \`--convergence-threshold <ratio>\` — early stop when output word count drops below this ratio of the previous round (default: 0.3)
 
-### Mode C: \`loop\` + preset (iterative, preset-driven)
+### Mode C: \`loop\` + inline prompt (iterative, no preset, auto-enhanced)
 
-For preset mode, do NOT write a full prompt file. Pass a concise focus string instead.
+Pass a short prompt string directly. Counselors automatically runs two prep phases before dispatch:
+1. **Discovery** — the discovery tool scans the repo to gather structural context
+2. **Prompt writing** — the discovery tool expands your short input into a full execution prompt grounded in the discovered context
+
+\`\`\`bash
+counselors loop "find race conditions in the worker pool" --tools [comma-separated-tool-ids] --json
+\`\`\`
+
+To skip the automatic enhancement and send the raw prompt: add \`--no-inline-enhancement\`.
+
+### Mode D: \`loop\` + preset (iterative, preset-driven)
+
+For preset mode, do NOT write a full prompt file. Pass a concise focus string instead. The preset provides domain-specific instructions, and counselors runs the same discovery + prompt-writing phases as inline mode.
 
 \`\`\`bash
 counselors loop --preset <preset-name> "<focus area>" --tools [comma-separated-tool-ids] --json
@@ -177,7 +197,25 @@ counselors loop --preset <preset-name> "<focus area>" --tools [comma-separated-t
 Example:
 - \`counselors loop --preset hotspots "critical request path" --group smart --duration 20m --json\`
 
-Use \`timeout: 600000\` (10 minutes). Counselors dispatches to the selected agents in parallel and writes results to the output directory shown in the JSON output.
+### Loop behavior: prior-round enrichment
+
+In rounds 2+, counselors automatically augments the prompt with \`@file\` references to all prior round outputs. Agents receive explicit instructions to:
+- Not repeat findings unless adding new evidence
+- Challenge and refine prior claims
+- Follow adjacent code paths discovered in earlier rounds
+- Label overlapping findings as confirmed, refined, invalidated, or duplicate
+
+### Common flags for all loop modes
+
+| Flag | Description |
+|------|-------------|
+| \`--rounds <N>\` | Number of rounds (default: 3) |
+| \`--duration <time>\` | Max wall time (\`30m\`, \`1h\`); unlimited rounds when set alone |
+| \`--convergence-threshold <ratio>\` | Early stop ratio (default: 0.3) |
+| \`--discovery-tool <id>\` | Agent for prep phases (default: first tool) |
+| \`--no-inline-enhancement\` | Skip discovery/prompt-writing for inline prompts |
+
+Use \`timeout: 600000\` (10 minutes) or higher. Counselors dispatches to the selected agents in parallel and writes results to the output directory shown in the JSON output.
 
 **Important**: For run/custom-loop file mode, use \`-f\` so the prompt is sent as-is without wrapping. Use \`--json\` on both \`mkdir\` and dispatch commands to get structured output for parsing.
 
@@ -191,6 +229,26 @@ Use \`timeout: 600000\` (10 minutes). Counselors dispatches to the selected agen
 2. **Read each agent's response** from the \`outputFile\` path in the manifest
 3. **Check \`stderrFile\` paths** for any agent that failed or returned empty output
 4. **Skip empty or error-only reports** — note which agents failed
+
+### Loop output structure
+
+For \`loop\` runs, the output directory contains per-round subdirectories plus cross-round notes:
+
+\`\`\`
+{outputDir}/
+├── round-1/
+│   ├── prompt.md          # Input prompt for this round
+│   ├── {tool-id}.md       # Each agent's output
+│   └── round-notes.md     # Per-round summary (auto-generated)
+├── round-2/
+│   ├── prompt.md          # Base prompt + @file refs to round-1 outputs
+│   ├── {tool-id}.md
+│   └── round-notes.md
+├── final-notes.md         # Cross-round summary (auto-generated)
+└── run.json               # Structured manifest with all rounds
+\`\`\`
+
+The manifest's \`rounds\` array contains per-round tool reports. \`totalRounds\` and \`durationMs\` are at the top level. Start with \`final-notes.md\` for a high-level summary, then drill into individual round outputs as needed.
 
 ---
 

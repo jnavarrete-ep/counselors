@@ -13,11 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom presets via YAML files — pass `--preset path/to/preset.yml` to use your own preset definitions
 - Non-TTY heartbeat: emits elapsed time and active PIDs to stderr every 60 seconds, preventing outer-agent timeouts during long-running dispatches
 - `mkdir` can now be run without a prompt to create only an output directory (no `prompt.md`)
-
-### Improved
-- Skill template now warns orchestrating LLMs that dispatch is long-running (10–20+ min) and suggests background execution with progress monitoring
+- `upgrade` now prints guidance to refresh the skill template after a successful upgrade
 
 ### Changed
+- Skill template now warns orchestrating LLMs that dispatch is long-running (10–20+ min) and suggests background execution with progress monitoring
 - Built-in presets are now YAML files with schema validation instead of hardcoded TypeScript
 - Output directory names include a timestamp prefix for uniqueness (e.g. `1740300000-bughunt`)
 - Output paths are always absolute, consistent across single `run` and `loop` commands
@@ -29,9 +28,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Duration-based loop runs are now truly unbounded by round count (removed hidden 999-round cap); reporter shows `Round N` when total rounds are open-ended
 - Prior-round prompt references are capped to the most recent 8 reports to control prompt growth in long loops
 - `mkdir --json` now reports `promptSource: "none"` and `promptFilePath: null` when no prompt input is provided
+- Loop output files renamed: `round-synthesis.md` → `round-notes.md`, `final-synthesis.md` → `final-notes.md`
+- CLI help text polished for LLM-friendly clarity across commands
+- Failed tools now show `see /path/to/tool.stderr` instead of the misleading first line of stderr
+- Between loop rounds, reporter shows elapsed time, remaining time (when `--duration` is set), and a Ctrl+C hint
+
+### Security
+- Environment variable denylist (`ENV_DENYLIST`) blocks `NODE_OPTIONS`, `LD_PRELOAD`, `DYLD_INSERT_LIBRARIES`, etc. from being re-injected via `invocation.env`, bypassing the allowlist
+- Markdown fence injection in `gatherContext` fixed via `safeFence()` that extends the delimiter until it doesn't conflict with content
 
 ### Fixed
 - Restored `npm run typecheck` health by fixing `runLoop` abort-state narrowing around SIGINT handling
+- Null stdio early-return no longer leaks child processes — tracked in `activeChildren` immediately after spawn
+- `generateSlug` returns `untitled` instead of empty string for non-alphanumeric input
+- `--file` no longer silently ignores `--context` — gathered context is appended to file content when both flags are provided
+- Group + explicit tool overlap no longer creates duplicates — tools appearing in both `--group` and `--tools` are deduped while preserving intentional duplicates
+- UTF-8 buffer truncation no longer splits multi-byte characters — `truncateUtf8` walks backwards past continuation bytes
+- `extractHeadings` uses `report.outputFile` instead of reconstructing the path
+- `removeToolFromConfig` cleans up groups left empty after tool removal
 
 ## [0.4.12] - 2026-02-19
 
