@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-26
+
 ### Added
 - `loop --list-presets` to print built-in presets with defaults and summaries
 - Presets system for domain-specific multi-round workflows, now with single-word built-ins: `bughunt`, `security`, `invariants`, `regression`, `contracts`, `hotspots`
@@ -46,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UTF-8 buffer truncation no longer splits multi-byte characters — `truncateUtf8` walks backwards past continuation bytes
 - `extractHeadings` uses `report.outputFile` instead of reconstructing the path
 - `removeToolFromConfig` cleans up groups left empty after tool removal
+
 
 ## [0.4.12] - 2026-02-19
 
@@ -219,7 +222,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release workflow accepts leading `v` in version input
 
 
-[Unreleased]: https://github.com/aarondfrancis/counselors/compare/v0.4.12...HEAD
+[Unreleased]: https://github.com/aarondfrancis/counselors/compare/v0.5.0...HEAD
 [0.3.0]: https://github.com/aarondfrancis/counselors/releases/tag/v0.3.0
 [0.3.1]: https://github.com/aarondfrancis/counselors/releases/tag/v0.3.1
 [0.3.2]: https://github.com/aarondfrancis/counselors/releases/tag/v0.3.2
@@ -238,3 +241,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.4.10]: https://github.com/aarondfrancis/counselors/releases/tag/v0.4.10
 [0.4.11]: https://github.com/aarondfrancis/counselors/releases/tag/v0.4.11
 [0.4.12]: https://github.com/aarondfrancis/counselors/releases/tag/v0.4.12
+[0.5.0]: https://github.com/aarondfrancis/counselors/releases/tag/v0.5.0
