@@ -108,7 +108,7 @@ export class AgentReporter implements Reporter {
   roundStarted(round: number, totalRounds: number | null): void {
     if (round > 1) {
       const elapsed = Date.now() - this.executionStart;
-      let timing = formatDuration(elapsed) + ' elapsed';
+      let timing = `${formatDuration(elapsed)} elapsed`;
       if (this.durationMs) {
         const remaining = Math.max(0, this.durationMs - elapsed);
         timing += ` \u00b7 ~${formatDuration(remaining)} remaining`;

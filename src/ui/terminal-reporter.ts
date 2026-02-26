@@ -137,7 +137,7 @@ export class TerminalReporter implements Reporter {
       this.lineCount = 0;
 
       const elapsed = Date.now() - this.executionStart;
-      let timing = formatDuration(elapsed) + ' elapsed';
+      let timing = `${formatDuration(elapsed)} elapsed`;
       if (this.durationMs) {
         const remaining = Math.max(0, this.durationMs - elapsed);
         timing += ` \u00b7 ~${formatDuration(remaining)} remaining`;

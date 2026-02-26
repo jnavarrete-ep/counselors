@@ -139,7 +139,7 @@ describe('runLoop', () => {
     expect(finalPrompt).toContain(
       'Only the most recent 8 outputs are included',
     );
-    const refCount = (finalPrompt.match(/@.*round-\d+\/claude\.md/g) ?? [])
+    const refCount = (finalPrompt.match(/@.*round-\d+[/\\]claude\.md/g) ?? [])
       .length;
     expect(refCount).toBe(8);
   });
