@@ -72,7 +72,9 @@ export class AgentReporter implements Reporter {
     this.stderr('  \u2139 This may take more than 10 minutes');
     this.stderr(`  PID: ${process.pid}`);
     if (this.durationMs) {
-      this.stderr(`  Duration: ${formatDuration(this.durationMs)} — no new rounds after that, but in-flight rounds will complete`);
+      this.stderr(
+        `  Duration: ${formatDuration(this.durationMs)} — no new rounds after that, but in-flight rounds will complete`,
+      );
     }
   }
 
