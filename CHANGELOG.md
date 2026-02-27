@@ -7,11 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Standalone release binaries are now built into `release/` instead of `dist/`, decoupling binary artifacts from npm package contents
+- Homebrew formula updates now target platform-specific GitHub release binaries directly (macOS/Linux, arm64/x64) instead of the npm tarball
+
+### Fixed
+- npm package publish size is dramatically reduced by excluding standalone compiled binaries from the published `files` list
+- Release smoke tests now include Linux (`ubuntu-latest`) for `npm` and `standalone` install paths to catch Linux-only install/runtime breakages
+- Homebrew checksum resolution now retries when fetching freshly uploaded release asset checksums, reducing transient CDN propagation failures
+- Generated Homebrew formula install logic now validates binary discovery in the staging directory before install, with clearer failure behavior
+
 ## [0.5.2] - 2026-02-27
 
 ### Added
 - `loop --duration` now prints the configured duration at the start of execution so users know how long the session will run
-
 
 ## [0.5.1] - 2026-02-27
 
