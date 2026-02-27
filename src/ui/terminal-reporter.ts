@@ -97,6 +97,9 @@ export class TerminalReporter implements Reporter {
       this.toolOrder.push(id);
     }
     this.executionActive = true;
+    if (this.durationMs) {
+      this.stderr(`  Duration: ${formatDuration(this.durationMs)} — no new rounds after that, but in-flight rounds will complete`);
+    }
     this.render();
     this.timer = setInterval(() => {
       this.frame++;
