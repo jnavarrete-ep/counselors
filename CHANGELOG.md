@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-02-27
+
 ### Added
 - Child process PIDs are now surfaced during discovery and prompt-writing phases, giving outer agents visibility to monitor long-running prep steps
+
 
 ## [0.5.0] - 2026-02-26
 
@@ -225,7 +228,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release workflow accepts leading `v` in version input
 
 
-[Unreleased]: https://github.com/aarondfrancis/counselors/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/aarondfrancis/counselors/compare/v0.5.1...HEAD
 [0.3.0]: https://github.com/aarondfrancis/counselors/releases/tag/v0.3.0
 [0.3.1]: https://github.com/aarondfrancis/counselors/releases/tag/v0.3.1
 [0.3.2]: https://github.com/aarondfrancis/counselors/releases/tag/v0.3.2
@@ -245,3 +248,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.4.11]: https://github.com/aarondfrancis/counselors/releases/tag/v0.4.11
 [0.4.12]: https://github.com/aarondfrancis/counselors/releases/tag/v0.4.12
 [0.5.0]: https://github.com/aarondfrancis/counselors/releases/tag/v0.5.0
+[0.5.1]: https://github.com/aarondfrancis/counselors/releases/tag/v0.5.1
