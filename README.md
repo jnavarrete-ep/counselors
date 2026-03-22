@@ -443,6 +443,8 @@ counselors skill
 counselors agent
 ```
 
+**Cursor:** This repo ships an Agent Skill at [`.cursor/skills/counselors/SKILL.md`](.cursor/skills/counselors/SKILL.md) (adapted from `counselors skill` for Cursor). Copy that file to `~/.cursor/skills/counselors/SKILL.md` if you want the same workflow in every project.
+
 The skill template provides a multi-phase workflow: gather context, select agents, choose dispatch mode (`run` vs `loop`), assemble prompt/focus, create prompt files via `counselors mkdir` when needed, dispatch, read results, and synthesize a combined answer.
 
 ## How is this different from...?
