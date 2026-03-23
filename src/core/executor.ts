@@ -78,7 +78,6 @@ export function clearSigintExit(): void {
 
 const ENV_DENYLIST = new Set([
   'NODE_OPTIONS',
-  'NODE_EXTRA_CA_CERTS',
   'LD_PRELOAD',
   'LD_LIBRARY_PATH',
   'LD_AUDIT',
@@ -112,10 +111,21 @@ const ENV_ALLOWLIST = [
   'NVM_BIN',
   'NVM_DIR',
   'FNM_MULTISHELL_PATH',
-  // API keys for adapters
+  // Node TLS (needed for corporate proxies with TLS inspection)
+  'NODE_EXTRA_CA_CERTS',
+  // API keys and config for adapters
   'ANTHROPIC_API_KEY',
+  'ANTHROPIC_BASE_URL',
+  'ANTHROPIC_MODEL',
+  'ANTHROPIC_DEFAULT_OPUS_MODEL',
+  'ANTHROPIC_DEFAULT_SONNET_MODEL',
+  'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+  // Claude Code specific settings
+  'CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS',
+  'CLAUDE_CODE_ENABLE_TELEMETRY',
   'OPENAI_API_KEY',
   'OPENAI_ORG_ID',
+  'OPENAI_BASE_URL',
   'GEMINI_API_KEY',
   'GOOGLE_API_KEY',
   'GOOGLE_APPLICATION_CREDENTIALS',

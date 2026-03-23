@@ -497,6 +497,27 @@ describe('execute', () => {
     }
   });
 
+  it('passes NODE_EXTRA_CA_CERTS through to child processes (corporate proxy support)', async () => {
+    process.env.NODE_EXTRA_CA_CERTS = '/path/to/corporate-ca.crt';
+    try {
+      const result = await execute(
+        {
+          cmd: 'node',
+          args: [
+            '-e',
+            'process.stdout.write(process.env.NODE_EXTRA_CA_CERTS || "NOT_SET")',
+          ],
+          cwd: process.cwd(),
+        },
+        5000,
+      );
+
+      expect(result.stdout).toBe('/path/to/corporate-ca.crt');
+    } finally {
+      delete process.env.NODE_EXTRA_CA_CERTS;
+    }
+  });
+
   it('blocks NODE_OPTIONS from reaching child processes', async () => {
     process.env.NODE_OPTIONS = '--max-old-space-size=4096';
     try {
